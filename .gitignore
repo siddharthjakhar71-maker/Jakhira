@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+data/
+windows-dist/
+software-build/node_modules/
+software-build/output/
+
+# Local database
+*.db
