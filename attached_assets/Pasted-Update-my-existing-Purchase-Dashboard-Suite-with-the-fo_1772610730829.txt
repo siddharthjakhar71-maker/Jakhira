@@ -1,0 +1,87 @@
+Update my existing Purchase Dashboard Suite with the following fixes and improvements based on our company workflow.
+
+1. Vendor Address Field
+   Add a proper Vendor Address field in the Vendor module.
+   Each vendor should store:
+
+* Vendor Name
+* Contact Person
+* Phone Number
+* GST Number
+* Vendor Address
+* Email
+
+This address should automatically appear in Purchase Orders when that vendor is selected.
+
+2. Vendor Rate List + Material Integration
+   Create a Vendor Rate List system.
+
+Requirements:
+
+* Each vendor can have their own material rate list.
+* In the Vendor section, allow adding materials with rates for that vendor.
+* When creating a Purchase Order:
+
+  * When I select a vendor, the system should automatically load that vendor's saved material rates.
+  * When I select a material, the rate should auto-fill from that vendor's rate list.
+* If a vendor has a different rate for the same material, it should show that vendor's specific rate.
+
+3. Restore View Option
+   Earlier the system had a "View" option which is now missing.
+
+Restore the "View" button in these modules:
+
+* Vendors
+* Materials
+* Purchase Orders
+
+The View option should open a detailed page showing full information.
+
+4. Remove Vendor Quotation Module
+   Remove the Vendor Quotation module completely from:
+
+* Sidebar menu
+* Database tables
+* Pages
+
+It is not needed in our workflow.
+
+5. Fix Stock Balance When Deleting Material Issue
+   Currently when a material issue entry is deleted, the stock balance does not update.
+
+Fix this logic:
+
+* If a material issue is deleted, the stock quantity should automatically increase back.
+* Stock should always recalculate based on:
+  Total Received – Total Issued
+
+6. Fix Material Search in Stock Management
+   The material search field in Stock Management is not working.
+
+Fix it so users can:
+
+* Search by material name
+* Filter stock list correctly.
+
+7. Notification System Improvement
+   Currently the notification system shows only one notification at a time.
+
+Improve it so:
+
+* Multiple notifications can be displayed.
+* Notifications appear as a list.
+* Users can see several alerts at once (for example low stock, pending tasks, new PO alerts).
+
+8. Ensure Compatibility
+   All changes must work with existing modules:
+
+* Vendors
+* Materials
+* Purchase Orders
+* GRN
+* Bills
+* Sites
+* Stock Management
+* Reports
+
+The system must continue working as an offline desktop app using Electron with a local SQLite database.

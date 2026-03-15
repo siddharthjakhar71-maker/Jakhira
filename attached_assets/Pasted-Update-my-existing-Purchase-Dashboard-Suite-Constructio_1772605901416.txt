@@ -1,0 +1,76 @@
+Update my existing **Purchase Dashboard Suite (Construction Purchase ERP)** with the following new modules and functionality.
+
+1. **Vendor Quotation Comparison Module**
+
+* Allow users to create a quotation request for a material requirement.
+* Add multiple vendors and enter their quoted rates for the same materials.
+* Show a comparison table listing vendor name, material, quantity, rate, total price, and delivery time.
+* Highlight the lowest quotation automatically.
+* Allow converting the selected vendor quotation directly into a **Purchase Order**.
+* Store quotation history in the database.
+
+2. **Stock Tracking Per Site**
+
+* Add inventory tracking for each project site.
+* When a **GRN (Goods Received Note)** is created, automatically increase stock for that site.
+* Add a **Material Issue / Consumption** entry to reduce stock when materials are used.
+* Maintain stock balance using the formula:
+  Balance = Total Received – Total Issued
+* Show stock reports by:
+
+  * Site
+  * Material
+  * Date range
+
+3. **Material Rate History**
+
+* Track historical rates of each material purchased.
+* Whenever a purchase order or vendor quotation is saved, record:
+
+  * Material
+  * Vendor
+  * Rate
+  * Date
+  * Purchase Order Number
+* Add a **Rate History view** in the Material page showing previous purchase prices.
+* Display rate trend to help compare vendor pricing over time.
+
+4. **WhatsApp Purchase Order Sending**
+
+* After generating a Purchase Order PDF, add a button **Send via WhatsApp**.
+* Automatically open WhatsApp Web with a pre-filled message including:
+
+  * Vendor name
+  * PO number
+  * PO amount
+  * Message: “Please find attached purchase order.”
+* Allow attaching the generated PO PDF.
+
+5. **Database Changes**
+   Add tables for:
+
+* vendor_quotations
+* quotation_items
+* site_stock
+* material_rate_history
+* material_issues
+
+6. **UI Updates**
+   Add new menu sections in the sidebar:
+
+* Vendor Quotations
+* Stock Management
+* Rate History
+
+The system should remain compatible with the existing modules:
+
+* Vendors
+* Materials
+* Purchase Orders
+* GRN
+* Bills
+* Payments
+* Sites
+* Reports
+
+Ensure the application still works as a **desktop app using Electron and local SQLite database for offline usage.**

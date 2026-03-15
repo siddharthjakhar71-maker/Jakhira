@@ -1,0 +1,93 @@
+====================================================================
+  BILLIONAIRE HOMES LLP - DESKTOP APPLICATION BUILD INSTRUCTIONS
+====================================================================
+
+This folder contains everything needed to build a standalone Windows
+desktop application (.exe) with its own window (no browser required).
+
+
+PREREQUISITES (on your Windows computer):
+-----------------------------------------
+1. Install Node.js (v18 or v20 LTS) from https://nodejs.org
+2. Install Visual Studio Build Tools from:
+   https://visualstudio.microsoft.com/visual-cpp-build-tools/
+   (Select "Desktop development with C++" workload during install)
+
+
+BUILD STEPS:
+-----------
+1. Copy this entire "software-build" folder to your Windows computer.
+
+2. Open Command Prompt (cmd) or PowerShell in the "software-build" folder.
+
+3. Install dependencies:
+       npm install
+
+4. Rebuild native modules for Electron:
+       npx @electron/rebuild
+
+5. Test the app locally (opens a desktop window):
+       npm start
+
+6. If the test works, build the portable exe:
+       npm run dist
+
+7. Find your portable exe in:
+       software-build\output\BillionaireHomes-PurchaseDept.exe
+
+
+HOW TO USE THE PORTABLE EXE:
+----------------------------
+  - Copy BillionaireHomes-PurchaseDept.exe anywhere (desktop, pendrive, etc.)
+  - Double-click to run - it opens as a desktop window
+  - A "data" folder is created next to the exe for your database
+  - Your data stays with the exe - fully portable!
+  - Only ONE instance can run at a time (prevents conflicts)
+
+
+WHAT EACH FILE DOES:
+-------------------
+  main.js       - Electron main process (creates desktop window + starts server)
+  server.cjs    - Bundled Express server (all API routes + database logic)
+  public/       - Frontend web interface files
+  package.json  - Project config with build settings
+  icon.png      - Application icon
+
+
+DATA STORAGE:
+------------
+  The database file is stored in a "data" folder NEXT TO the exe file.
+  Example: If exe is at D:\MyApps\BillionaireHomes.exe
+           Data is at D:\MyApps\data\local.db
+
+  This means:
+  - Copy the exe + data folder together to move everything
+  - To backup: copy the "data" folder
+  - To reset all data: delete the "data" folder
+
+
+DEFAULT LOGIN:
+-------------
+  Email:    siddharthjakhar71@gmail.com
+  Password: 8800447427
+
+
+TROUBLESHOOTING:
+---------------
+  "Startup Error - Server failed to start":
+    - Make sure only ONE copy of the app is running
+    - Check Task Manager for any leftover processes named
+      "Billionaire Homes" and end them, then retry
+    - Right-click the exe and "Run as Administrator" once
+
+  "npm install fails":
+    - Make sure Node.js v18+ is installed: node --version
+    - Try: npm cache clean --force && npm install
+
+  "npx @electron/rebuild fails":
+    - Install Visual Studio Build Tools (see prerequisites above)
+    - Retry: npx @electron/rebuild
+
+  "App shows blank window":
+    - Wait a few seconds - the server needs time to start
+    - Check that the "public" folder exists next to main.js
