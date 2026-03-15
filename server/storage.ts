@@ -999,7 +999,7 @@ export class DatabaseStorage implements IStorage {
       ...profile,
       phone: profile.phone ?? "",
       role: profile.role ?? "Admin",
-      company: profile.company ?? "Billionaire Homes LLP",
+      company: profile.company ?? "JAKHIRA",
       password: profile.password ?? "admin123",
     };
     const [result] = await db.insert(userProfile).values(payload).returning();
@@ -1019,7 +1019,7 @@ export class DatabaseStorage implements IStorage {
       email: "admin@purchase.local",
       phone: "",
       role: "Admin",
-      company: "Billionaire Homes LLP",
+      company: "JAKHIRA",
       password: "admin123",
     });
   }

@@ -95,6 +95,10 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    document.title = "JAKHIRA ERP";
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

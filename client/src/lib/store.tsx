@@ -67,7 +67,7 @@ const defaultProfile: UserProfile = {
   email: 'siddharthjakhar71@gmail.com',
   phone: '+91 88004 47427',
   role: 'Admin',
-  company: 'Billionaire Homes LLP',
+  company: 'JAKHIRA',
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {

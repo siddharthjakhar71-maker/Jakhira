@@ -97,6 +97,13 @@ export async function registerRoutes(
     if (!profile || profile.password !== password) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
+
+    if (profile) {
+      await storage.updateUserProfile(profile.id, {
+        company: "JAKHIRA",
+      });
+    }
+
     return res.json({
       success: true,
       profile: {
@@ -104,7 +111,7 @@ export async function registerRoutes(
         name: profile.name,
         email: profile.email,
         role: profile.role,
-        company: profile.company,
+        company: "JAKHIRA",
       },
     });
   });

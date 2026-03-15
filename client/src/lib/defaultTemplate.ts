@@ -54,7 +54,7 @@ export const DEFAULT_TEMPLATE_CONFIG: POTemplateConfig = {
       'Delivery: All materials shall be delivered at the site address mentioned above, within the agreed delivery schedule.',
       'Quality: All materials and workmanship must conform to relevant IS standards and pre-approved samples.',
       'Guarantee / Warranty: The vendor guarantees the quality of all supplied materials/work for a minimum period as per industry norms and applicable standards.',
-      'Inspection: Billionaire Homes reserves the right to inspect, test, and reject any materials or work that do not meet the specified quality standards.',
+      'Inspection: JAKHIRA reserves the right to inspect, test, and reject any materials or work that do not meet the specified quality standards.',
       'Validity: This Purchase Order is valid for 30 days from the date of issue, unless extended in writing.',
     ],
     showSignature: true,
