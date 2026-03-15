@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { BRAND } from "@/config/brand";
 import { useStore, type Material } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -425,7 +426,7 @@ export default function PurchaseOrders() {
     const poNumber = po.displayId;
     const amount = po.totalAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
     const vendorName = vendor?.name || 'Vendor';
-    const message = `Dear ${vendorName},\n\nPlease find the Purchase Order details:\n\nPO Number: ${poNumber}\nAmount: Rs. ${amount}\n\nPlease find attached purchase order.\n\nRegards,\n${userProfile.company || 'Billionaire Homes LLP'}`;
+    const message = `Dear ${vendorName},\n\nPlease find the Purchase Order details:\n\nPO Number: ${poNumber}\nAmount: Rs. ${amount}\n\nPlease find attached purchase order.\n\nRegards,\n${userProfile.company || BRAND.companyName}`;
     const encodedMsg = encodeURIComponent(message);
     const url = vendorPhone
       ? `https://wa.me/${vendorPhone}?text=${encodedMsg}`

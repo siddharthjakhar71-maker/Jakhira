@@ -4,6 +4,7 @@ import * as schema from "@shared/schema";
 import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES } from "@shared/permissions";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
+import { BRAND } from "./config/brand";
 
 function getDataRoot(): string {
   if (process.env.APP_DATA_DIR) {
@@ -537,7 +538,7 @@ const now = () => new Date().toISOString();
 const profileCount = sqlite.prepare("SELECT COUNT(*) as c FROM user_profile").get() as { c: number };
 if (profileCount.c === 0) {
   sqlite.prepare("INSERT INTO user_profile (name, email, phone, role, company, password) VALUES (?, ?, ?, ?, ?, ?)")
-    .run("Admin", "admin@purchase.local", "", "Admin", "Billionaire Homes LLP", "admin123");
+    .run("Admin", BRAND.defaultAdminEmail, "", "Admin", BRAND.companyName, "admin123");
 }
 
 const settingsCount = sqlite.prepare("SELECT COUNT(*) as c FROM system_settings").get() as { c: number };

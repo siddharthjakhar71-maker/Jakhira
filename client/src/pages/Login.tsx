@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2 } from "lucide-react";
+import { BRAND } from "@/config/brand";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -31,20 +31,20 @@ export default function Login() {
       <Card className="w-full max-w-md shadow-xl border-none">
         <CardHeader className="space-y-4 text-center pb-8">
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-primary" />
+            <img src={BRAND.logo} alt={BRAND.companyName} className="w-10 h-10 object-contain" />
           </div>
           <div className="space-y-2">
             <CardTitle className="text-3xl font-bold tracking-tight">
-              Billionare<span className="text-primary">Homes</span>
+              {BRAND.companyName}
             </CardTitle>
-            <CardDescription className="text-sm">Procurement & Purchase Dashboard</CardDescription>
+            <CardDescription className="text-sm">{BRAND.tagline}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="admin@billionarehomes.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" data-testid="input-email" />
+              <Input id="email" type="email" placeholder={BRAND.supportEmail} value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" data-testid="input-email" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

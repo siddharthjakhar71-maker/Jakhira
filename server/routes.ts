@@ -3,6 +3,7 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import * as XLSX from "xlsx";
 import { PERMISSION_ROUTE_MAP } from "@shared/permissions";
+import { BRAND } from "./config/brand";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -104,7 +105,7 @@ export async function registerRoutes(
         name: profile.name,
         email: profile.email,
         role: profile.role,
-        company: profile.company,
+        company: profile.company || BRAND.companyName,
       },
     });
   });
@@ -121,7 +122,7 @@ export async function registerRoutes(
         name: profile.name,
         email: profile.email,
         role: profile.role,
-        company: profile.company,
+        company: profile.company || BRAND.companyName,
       },
     });
   });
@@ -150,7 +151,7 @@ export async function registerRoutes(
         name: updated.name,
         email: updated.email,
         role: updated.role,
-        company: updated.company,
+        company: updated.company || BRAND.companyName,
       },
     });
   });

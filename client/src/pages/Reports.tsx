@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { BRAND } from "@/config/brand";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from "recharts";
@@ -138,7 +139,7 @@ export default function Reports() {
     })) : [{ ID: 'No Data' }];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsExport), "Payments");
 
-    XLSX.writeFile(wb, "Billionare_Homes_Master_Report.xlsx");
+    XLSX.writeFile(wb, `${BRAND.shortName}_Master_Report.xlsx`);
   };
 
   return (

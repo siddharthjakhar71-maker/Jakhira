@@ -20,6 +20,7 @@ import {
   type UserProfile, type InsertUserProfile,
   type SystemSettings, type InsertSystemSettings
 } from "@shared/schema";
+import { BRAND } from "./config/brand";
 
 export interface IStorage {
   getSites(): Promise<Site[]>;
@@ -999,7 +1000,7 @@ export class DatabaseStorage implements IStorage {
       ...profile,
       phone: profile.phone ?? "",
       role: profile.role ?? "Admin",
-      company: profile.company ?? "Billionaire Homes LLP",
+      company: profile.company ?? BRAND.companyName,
       password: profile.password ?? "admin123",
     };
     const [result] = await db.insert(userProfile).values(payload).returning();
@@ -1016,10 +1017,10 @@ export class DatabaseStorage implements IStorage {
     if (existing) return;
     await db.insert(userProfile).values({
       name: "Admin",
-      email: "admin@purchase.local",
+      email: BRAND.defaultAdminEmail,
       phone: "",
       role: "Admin",
-      company: "Billionaire Homes LLP",
+      company: BRAND.companyName,
       password: "admin123",
     });
   }

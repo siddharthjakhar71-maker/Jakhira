@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, queryKeys } from './api';
+import { BRAND } from "@/config/brand";
 
 export type Site = { id: number; siteName: string; projectName: string; siteCode: string; poPrefix?: string; billingCode?: string; address: string; city: string; state: string; pincode: string; contactPerson: string; phone: string; status: string; createdAt?: string; name: string; location: string; billingName?: string; billTo?: string; shipTo?: string };
 export type Vendor = { id: number; name: string; gst: string | null; contactPerson: string | null; phone: string | null; address: string | null; email: string | null; openingBalance: number; openingDate: string; };
@@ -67,7 +68,7 @@ const defaultProfile: UserProfile = {
   email: 'siddharthjakhar71@gmail.com',
   phone: '+91 88004 47427',
   role: 'Admin',
-  company: 'Billionaire Homes LLP',
+  company: BRAND.companyName,
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {

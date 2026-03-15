@@ -29,6 +29,7 @@ import { StoreProvider, useStore } from "@/lib/store";
 import { ThemeProvider } from "@/lib/theme";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BRAND } from "@/config/brand";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +96,10 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    document.title = BRAND.appName;
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

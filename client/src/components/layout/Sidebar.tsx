@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { BRAND } from "@/config/brand";
 
 type NavItem = { name: string; href: string; icon: any };
 
@@ -100,8 +101,8 @@ export function Sidebar() {
     <div className="flex flex-col w-64 border-r border-sidebar-border bg-sidebar h-screen sticky top-0">
 
   <div className="h-16 flex items-center px-6 border-b border-sidebar-border text-lg font-bold tracking-tight">
-  <span className="text-[var(--text-primary)]">Billionaire</span>
-  <span className="text-[var(--primary-color)] ml-1">Homes</span>
+  <img src={BRAND.logo} alt={BRAND.companyName} className="h-8 w-8 object-contain" />
+  <span className="text-[var(--text-primary)] ml-2">{BRAND.companyName}</span>
 </div>
 
       <div className="flex-1 py-4 flex flex-col gap-1 px-3 overflow-y-auto">
