@@ -100,8 +100,7 @@ export function Sidebar() {
     <div className="flex flex-col w-64 border-r border-sidebar-border bg-sidebar h-screen sticky top-0">
 
   <div className="h-16 flex items-center px-6 border-b border-sidebar-border text-lg font-bold tracking-tight">
-  <span className="text-[var(--text-primary)]">Billionaire</span>
-  <span className="text-[var(--primary-color)] ml-1">Homes</span>
+  <span className="text-[var(--text-primary)]">JAKHIRA</span>
 </div>
 
       <div className="flex-1 py-4 flex flex-col gap-1 px-3 overflow-y-auto">

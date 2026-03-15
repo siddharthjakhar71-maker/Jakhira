@@ -138,7 +138,7 @@ export default function Reports() {
     })) : [{ ID: 'No Data' }];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(paymentsExport), "Payments");
 
-    XLSX.writeFile(wb, "Billionare_Homes_Master_Report.xlsx");
+    XLSX.writeFile(wb, "JAKHIRA_Master_Report.xlsx");
   };
 
   return (

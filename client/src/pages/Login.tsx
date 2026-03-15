@@ -20,6 +20,8 @@ export default function Login() {
     const success = await login(email, password);
     setLoading(false);
     if (success) {
+      localStorage.clear();
+      sessionStorage.clear();
       setLocation("/");
     } else {
       alert("Invalid credentials");
@@ -35,7 +37,7 @@ export default function Login() {
           </div>
           <div className="space-y-2">
             <CardTitle className="text-3xl font-bold tracking-tight">
-              Billionare<span className="text-primary">Homes</span>
+              JAKHIRA
             </CardTitle>
             <CardDescription className="text-sm">Procurement & Purchase Dashboard</CardDescription>
           </div>
@@ -44,7 +46,7 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="admin@billionarehomes.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" data-testid="input-email" />
+              <Input id="email" type="email" placeholder="admin@jakhira.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11" data-testid="input-email" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
