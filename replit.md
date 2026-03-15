@@ -1,7 +1,7 @@
-# Billionaire Homes LLP - Procurement Dashboard
+# JAKHIRA - Procurement Dashboard
 
 ## Overview
-A fully offline, single-user Purchase Department procurement dashboard for "Billionaire Homes LLP" (real estate company). Built with React/TypeScript frontend and Express/SQLite backend. Runs entirely locally with no cloud or internet dependencies.
+A fully offline, single-user Purchase Department procurement dashboard for "JAKHIRA" (real estate company). Built with React/TypeScript frontend and Express/SQLite backend. Runs entirely locally with no cloud or internet dependencies.
 
 ## Architecture
 - **Frontend**: React 19 + TypeScript + Vite + TailwindCSS + shadcn/ui + Recharts
