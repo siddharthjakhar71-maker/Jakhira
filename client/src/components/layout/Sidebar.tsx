@@ -15,11 +15,22 @@ import {
   Wallet,
   Package,
   MapPinned,
+  Factory,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type NavItem = { name: string; href: string; icon: any };
+type NavSectionProps = {
+  title: string;
+  icon: any;
+  isOpen: boolean;
+  isActive: boolean;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+};
 
 const dashboardNavigation: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -62,33 +73,125 @@ const reportsNavigation: NavItem[] = [
   { name: "Reports", href: "/reports", icon: PieChart },
 ];
 
-function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
+function NavLink({
+  item,
+  isActive,
+  isCollapsed,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  isCollapsed: boolean;
+}) {
   return (
     <Link href={item.href}>
       <a
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all text-sm font-medium",
-          isActive
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          "erp-sidebar-link",
+          isCollapsed && "collapsed",
+          isActive && "active",
         )}
+        title={isCollapsed ? item.name : undefined}
       >
-        <item.icon className="h-[18px] w-[18px]" />
-        {item.name}
+        <item.icon className="erp-sidebar-link-icon" />
+        <span className="erp-sidebar-menu-text">{item.name}</span>
       </a>
     </Link>
+  );
+}
+
+function NavSection({
+  title,
+  icon: Icon,
+  isOpen,
+  isActive,
+  isCollapsed,
+  onToggle,
+  children,
+}: NavSectionProps) {
+  return (
+    <div className="erp-sidebar-section">
+      <button
+        onClick={onToggle}
+        className={cn(
+          "erp-sidebar-section-trigger",
+          isCollapsed && "collapsed",
+          isActive && "active",
+        )}
+        title={isCollapsed ? title : undefined}
+      >
+        <span className="erp-sidebar-section-label">
+          <Icon className="erp-sidebar-link-icon" />
+          <span className="erp-sidebar-menu-text">{title}</span>
+        </span>
+        {!isCollapsed && (
+          isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />
+        )}
+      </button>
+
+      {isOpen && <div className={cn("erp-sidebar-submenu", isCollapsed && "collapsed")}>{children}</div>}
+    </div>
   );
 }
 
 export function Sidebar() {
   const [location] = useLocation();
   const { userProfile } = useStore();
+  const isMobile = useIsMobile();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const [purchaseOpen, setPurchaseOpen] = useState(true);
   const [vendorOpen, setVendorOpen] = useState(true);
   const [inventoryOpen, setInventoryOpen] = useState(true);
   const [financeOpen, setFinanceOpen] = useState(true);
   const [analyticsOpen, setAnalyticsOpen] = useState(true);
+
+  useEffect(() => {
+    const syncSidebarState = () => {
+      const sidebar = document.documentElement;
+      sidebar.classList.toggle("sidebar-collapsed", isCollapsed && !isMobile);
+      sidebar.classList.toggle("sidebar-mobile-open", isMobileOpen && isMobile);
+    };
+
+    syncSidebarState();
+    return () => {
+      document.documentElement.classList.remove("sidebar-collapsed", "sidebar-mobile-open");
+    };
+  }, [isCollapsed, isMobile, isMobileOpen]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsMobileOpen(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    const handleSidebarToggle = () => {
+      if (isMobile) {
+        setIsMobileOpen((current) => !current);
+        return;
+      }
+
+      setIsCollapsed((current) => !current);
+      document.documentElement.classList.toggle("collapsed");
+    };
+
+    const handleClose = () => setIsMobileOpen(false);
+
+    window.addEventListener("erp:sidebar-toggle", handleSidebarToggle);
+    window.addEventListener("erp:sidebar-close", handleClose);
+
+    return () => {
+      window.removeEventListener("erp:sidebar-toggle", handleSidebarToggle);
+      window.removeEventListener("erp:sidebar-close", handleClose);
+    };
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsMobileOpen(false);
+    }
+  }, [location, isMobile]);
 
   const purchaseActive = purchaseNavigation.some((i) => location === i.href);
   const vendorActive = vendorNavigation.some((i) => location === i.href);
@@ -97,119 +200,118 @@ export function Sidebar() {
   const analyticsActive = analyticsNavigation.some((i) => location === i.href);
 
   return (
-    <div className="flex flex-col w-64 border-r border-sidebar-border bg-sidebar h-screen sticky top-0">
+    <>
+      <button
+        type="button"
+        className={cn("erp-sidebar-backdrop", isMobileOpen && "open")}
+        onClick={() => setIsMobileOpen(false)}
+        aria-label="Close sidebar overlay"
+      />
 
-  <div className="h-16 flex items-center px-6 border-b border-sidebar-border text-lg font-bold tracking-tight">
-  <span className="text-[var(--text-primary)]">JAKHIRA</span>
-</div>
+      <aside
+        className={cn(
+          "erp-sidebar",
+          isCollapsed && !isMobile && "collapsed",
+          isMobile && "mobile",
+          isMobileOpen && "mobile-open",
+        )}
+      >
+        <div className="erp-sidebar-brand">
+          <div className="erp-sidebar-logo" aria-hidden="true">
+            <Factory className="h-5 w-5" />
+          </div>
+          <div className="erp-sidebar-brand-copy">
+            <span className="erp-sidebar-title">JAKHIRA</span>
+            <span className="erp-sidebar-subtitle">ERP Workspace</span>
+          </div>
+        </div>
 
-      <div className="flex-1 py-4 flex flex-col gap-1 px-3 overflow-y-auto">
-        {dashboardNavigation.map((item) => (
-          <NavLink key={item.name} item={item} isActive={location === item.href} />
-        ))}
-        {siteNavigation.map((item) => (
-          <NavLink key={item.name} item={item} isActive={location === item.href} />
-        ))}
+        <div className="erp-sidebar-user-chip">
+          <span className="erp-sidebar-user-avatar">{userProfile.name.charAt(0)}</span>
+          <div className="erp-sidebar-user-copy">
+            <span className="erp-sidebar-user-name">{userProfile.name}</span>
+            <span className="erp-sidebar-user-role">Operations</span>
+          </div>
+        </div>
 
-        {/* PURCHASE */}
-        <button
-          onClick={() => setPurchaseOpen(!purchaseOpen)}
-          className="flex justify-between px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:text-sidebar-foreground transition-colors"
-        >
-          <span className="flex gap-3 items-center">
-            <ShoppingCart className="h-[18px] w-[18px]" /> Purchase
-          </span>
-          {purchaseOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
+        <nav className="erp-sidebar-nav">
+          {dashboardNavigation.map((item) => (
+            <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
+          ))}
+          {siteNavigation.map((item) => (
+            <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
+          ))}
 
-        {purchaseOpen && (
-          <div className="ml-6 flex flex-col gap-1">
+          <NavSection
+            title="Purchase"
+            icon={ShoppingCart}
+            isOpen={purchaseOpen}
+            isActive={purchaseActive}
+            isCollapsed={isCollapsed && !isMobile}
+            onToggle={() => setPurchaseOpen(!purchaseOpen)}
+          >
             {purchaseNavigation.map((item) => (
-              <NavLink key={item.name} item={item} isActive={location === item.href} />
+              <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
             ))}
-          </div>
-        )}
+          </NavSection>
 
-        {/* VENDORS */}
-        <button
-          onClick={() => setVendorOpen(!vendorOpen)}
-          className="flex justify-between px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:text-sidebar-foreground transition-colors"
-        >
-          <span className="flex gap-3 items-center">
-            <Users className="h-[18px] w-[18px]" /> Vendors
-          </span>
-          {vendorOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-
-        {vendorOpen && (
-          <div className="ml-6 flex flex-col gap-1">
+          <NavSection
+            title="Vendors"
+            icon={Users}
+            isOpen={vendorOpen}
+            isActive={vendorActive}
+            isCollapsed={isCollapsed && !isMobile}
+            onToggle={() => setVendorOpen(!vendorOpen)}
+          >
             {vendorNavigation.map((item) => (
-              <NavLink key={item.name} item={item} isActive={location === item.href} />
+              <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
             ))}
-          </div>
-        )}
+          </NavSection>
 
-        {/* INVENTORY */}
-        <button
-          onClick={() => setInventoryOpen(!inventoryOpen)}
-          className="flex justify-between px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:text-sidebar-foreground transition-colors"
-        >
-          <span className="flex gap-3 items-center">
-            <Package className="h-[18px] w-[18px]" /> Inventory
-          </span>
-          {inventoryOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-
-        {inventoryOpen && (
-          <div className="ml-6 flex flex-col gap-1">
+          <NavSection
+            title="Inventory"
+            icon={Package}
+            isOpen={inventoryOpen}
+            isActive={inventoryActive}
+            isCollapsed={isCollapsed && !isMobile}
+            onToggle={() => setInventoryOpen(!inventoryOpen)}
+          >
             {inventoryNavigation.map((item) => (
-              <NavLink key={item.name} item={item} isActive={location === item.href} />
+              <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
             ))}
-          </div>
-        )}
+          </NavSection>
 
-        {/* FINANCE */}
-        <button
-          onClick={() => setFinanceOpen(!financeOpen)}
-          className="flex justify-between px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:text-sidebar-foreground transition-colors"
-        >
-          <span className="flex gap-3 items-center">
-            <BookOpen className="h-[18px] w-[18px]" /> Finance
-          </span>
-          {financeOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-
-        {financeOpen && (
-          <div className="ml-6 flex flex-col gap-1">
+          <NavSection
+            title="Finance"
+            icon={BookOpen}
+            isOpen={financeOpen}
+            isActive={financeActive}
+            isCollapsed={isCollapsed && !isMobile}
+            onToggle={() => setFinanceOpen(!financeOpen)}
+          >
             {financeNavigation.map((item) => (
-              <NavLink key={item.name} item={item} isActive={location === item.href} />
+              <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
             ))}
-          </div>
-        )}
+          </NavSection>
 
-        {/* ANALYTICS */}
-        <button
-          onClick={() => setAnalyticsOpen(!analyticsOpen)}
-          className="flex justify-between px-3 py-2.5 text-sm text-sidebar-foreground/75 hover:text-sidebar-foreground transition-colors"
-        >
-          <span className="flex gap-3 items-center">
-            <BarChart3 className="h-[18px] w-[18px]" /> Analytics
-          </span>
-          {analyticsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-
-        {analyticsOpen && (
-          <div className="ml-6 flex flex-col gap-1">
+          <NavSection
+            title="Analytics"
+            icon={BarChart3}
+            isOpen={analyticsOpen}
+            isActive={analyticsActive}
+            isCollapsed={isCollapsed && !isMobile}
+            onToggle={() => setAnalyticsOpen(!analyticsOpen)}
+          >
             {analyticsNavigation.map((item) => (
-              <NavLink key={item.name} item={item} isActive={location === item.href} />
+              <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
             ))}
-          </div>
-        )}
+          </NavSection>
 
-        {reportsNavigation.map((item) => (
-          <NavLink key={item.name} item={item} isActive={location === item.href} />
-        ))}
-      </div>
-    </div>
+          {reportsNavigation.map((item) => (
+            <NavLink key={item.name} item={item} isActive={location === item.href} isCollapsed={isCollapsed && !isMobile} />
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 }
