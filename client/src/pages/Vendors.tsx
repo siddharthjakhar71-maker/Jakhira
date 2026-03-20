@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Upload, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Upload, Eye, ArrowLeft } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -196,18 +196,52 @@ export default function Vendors() {
         </Card>
 
         <Dialog open={!!viewVendor} onOpenChange={(open) => !open && setViewVendor(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Vendor Details</DialogTitle></DialogHeader>
             {viewVendor && (
-              <div className="space-y-2 text-sm">
-                <p><strong>Name:</strong> {viewVendor.name}</p>
-                <p><strong>Contact Person:</strong> {viewVendor.contactPerson || '-'}</p>
-                <p><strong>Phone:</strong> {viewVendor.phone || '-'}</p>
-                <p><strong>GST:</strong> {viewVendor.gst || '-'}</p>
-                <p><strong>Address:</strong> {viewVendor.address || '-'}</p>
-                <p><strong>Email:</strong> {viewVendor.email || '-'}</p>
-                <p><strong>Opening Balance:</strong> {Number(viewVendor.openingBalance || 0).toFixed(2)}</p>
-                <p><strong>Opening Date:</strong> {viewVendor.openingDate || '-'}</p>
+              <div className="space-y-6">
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Vendor</p>
+                      <h3 className="text-2xl font-bold tracking-tight">{viewVendor.name}</h3>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
+                    <div><span className="text-muted-foreground">Contact Person:</span><p className="font-medium">{viewVendor.contactPerson || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Phone:</span><p className="font-medium">{viewVendor.phone || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Email:</span><p className="font-medium break-all">{viewVendor.email || '-'}</p></div>
+                    <div><span className="text-muted-foreground">GST Number:</span><p className="font-medium">{viewVendor.gst || '-'}</p></div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Contact Details</h3>
+                    <div><span className="text-muted-foreground">Company Name:</span><p className="font-medium">{viewVendor.name}</p></div>
+                    <div><span className="text-muted-foreground">Contact Person:</span><p className="font-medium">{viewVendor.contactPerson || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Phone:</span><p className="font-medium">{viewVendor.phone || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Email:</span><p className="font-medium break-all">{viewVendor.email || '-'}</p></div>
+                  </div>
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Account Details</h3>
+                    <div><span className="text-muted-foreground">GST Number:</span><p className="font-medium">{viewVendor.gst || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Opening Balance:</span><p className="font-medium">₹{Number(viewVendor.openingBalance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
+                    <div><span className="text-muted-foreground">Opening Date:</span><p className="font-medium">{viewVendor.openingDate || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Address:</span><p className="font-medium whitespace-pre-line">{viewVendor.address || '-'}</p></div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setViewVendor(null); handleOpenEdit(viewVendor); }}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => setViewVendor(null)}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
