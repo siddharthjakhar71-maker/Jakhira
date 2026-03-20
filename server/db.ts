@@ -81,6 +81,9 @@ CREATE TABLE IF NOT EXISTS vendors (
     freight_amount REAL NOT NULL DEFAULT 0,
     freight_gst_mode TEXT NOT NULL DEFAULT 'exclude',
     billing_name TEXT DEFAULT '',
+    bill_to TEXT DEFAULT '',
+    shipping_name TEXT DEFAULT '',
+    ship_to TEXT DEFAULT '',
     po_number TEXT NOT NULL DEFAULT '',
     running_number INTEGER NOT NULL DEFAULT 0,
     financial_year TEXT NOT NULL DEFAULT '',
@@ -396,6 +399,15 @@ if (!poColumns.some((column) => column.name === "site_code")) {
 }
 if (!poColumns.some((column) => column.name === "billing_code")) {
   sqlite.exec("ALTER TABLE purchase_orders ADD COLUMN billing_code TEXT NOT NULL DEFAULT '';");
+}
+if (!poColumns.some((column) => column.name === "bill_to")) {
+  sqlite.exec("ALTER TABLE purchase_orders ADD COLUMN bill_to TEXT NOT NULL DEFAULT '';");
+}
+if (!poColumns.some((column) => column.name === "shipping_name")) {
+  sqlite.exec("ALTER TABLE purchase_orders ADD COLUMN shipping_name TEXT NOT NULL DEFAULT '';");
+}
+if (!poColumns.some((column) => column.name === "ship_to")) {
+  sqlite.exec("ALTER TABLE purchase_orders ADD COLUMN ship_to TEXT NOT NULL DEFAULT '';");
 }
 
 const grnColumns = sqlite.prepare("PRAGMA table_info(grns)").all() as Array<{ name: string }>;

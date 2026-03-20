@@ -139,6 +139,22 @@ function isVisible(blocks: LayoutBlock[], id: string): boolean {
   return bl ? bl.visible : true;
 }
 
+
+function getBillingDetails(po: PO, site?: Site, userProfile?: UserProfile, fallbackCompanyName?: string) {
+  return {
+    name: po.billingName || site?.projectName || site?.billingName || userProfile?.company || fallbackCompanyName || '',
+    address: po.billTo || site?.billTo || site?.address || '',
+  };
+}
+
+function getShippingDetails(po: PO, site?: Site) {
+  return {
+    name: po.shippingName || po.billingName || site?.billingName || site?.siteName || site?.name || '',
+    address: po.shipTo || site?.shipTo || site?.address || '',
+    location: site?.city || site?.location || '',
+  };
+}
+
 export function generatePOPdf(data: PODocData) {
   const { po, site, vendor, materials, userProfile } = data;
   const tc = ensureTemplateDefaults(data.templateConfig);
@@ -370,13 +386,10 @@ export function generatePOPdf(data: PODocData) {
     }
     y += 6.5;
 
-    const billCompanyName = po.billingName || site?.projectName || site?.billingName || userProfile.company || tc.header.companyName;
-    const billCompanyAddress = site?.billTo || site?.address || '';
-    const billContent = buildAddressLines(billCompanyName, billCompanyAddress);
-
-    const shipName = site?.name || '';
-    const shipAddr = site?.address || site?.shipTo || '';
-    const shipContent = buildAddressLines(shipName, shipAddr, site?.location);
+    const billingDetails = getBillingDetails(po, site, userProfile, tc.header.companyName);
+    const shippingDetails = getShippingDetails(po, site);
+    const billContent = buildAddressLines(billingDetails.name, billingDetails.address);
+    const shipContent = buildAddressLines(shippingDetails.name, shippingDetails.address, shippingDetails.location);
 
     const billCell = showBillTo ? billContent : '';
     const shipCell = showShipTo ? shipContent : '';
@@ -426,9 +439,8 @@ export function generatePOPdf(data: PODocData) {
     if (!tc.visibility.billTo) return;
     sectionBar(tc.sections.billToTitle);
 
-    const billCompanyName = po.billingName || site?.projectName || site?.billingName || userProfile.company || tc.header.companyName;
-    const billCompanyAddress = site?.billTo || site?.address || '';
-    const content = buildAddressLines(billCompanyName, billCompanyAddress);
+    const billingDetails = getBillingDetails(po, site, userProfile, tc.header.companyName);
+    const content = buildAddressLines(billingDetails.name, billingDetails.address);
 
     autoTable(doc, {
       startY: y,
@@ -453,7 +465,8 @@ export function generatePOPdf(data: PODocData) {
     if (!tc.visibility.shipTo) return;
     sectionBar(tc.sections.shipToTitle);
 
-    const content = buildAddressLines(site?.siteName || site?.name || '', site?.address || site?.shipTo || '', site?.city || site?.location);
+    const shippingDetails = getShippingDetails(po, site);
+    const content = buildAddressLines(shippingDetails.name, shippingDetails.address, shippingDetails.location);
 
     autoTable(doc, {
       startY: y,
@@ -823,18 +836,19 @@ export function generatePOExcel(data: PODocData) {
   r.push([]);
 
   if (tc.visibility.billTo) {
+    const billingDetails = getBillingDetails(po, site, userProfile, tc.header.companyName);
     r.push([tc.sections.billToTitle]);
-    const poBillingName = po.billingName || site?.projectName || site?.billingName || '';
-    if (tc.visibility.billingName && poBillingName) r.push([poBillingName]);
-    if (site?.billTo || site?.address) r.push([site.billTo || site.address]);
+    if (tc.visibility.billingName && billingDetails.name) r.push([billingDetails.name]);
+    if (billingDetails.address) r.push([billingDetails.address]);
     r.push([]);
   }
 
-  if (tc.visibility.shipTo && site) {
+  if (tc.visibility.shipTo) {
+    const shippingDetails = getShippingDetails(po, site);
     r.push([tc.sections.shipToTitle]);
-    r.push([site.siteName || site.name]);
-    if (site.address || site.shipTo) r.push([site.address || site.shipTo]);
-    if (site.city || site.location) r.push([site.city || site.location]);
+    if (shippingDetails.name) r.push([shippingDetails.name]);
+    if (shippingDetails.address) r.push([shippingDetails.address]);
+    if (shippingDetails.location) r.push([shippingDetails.location]);
     r.push([]);
   }
 
