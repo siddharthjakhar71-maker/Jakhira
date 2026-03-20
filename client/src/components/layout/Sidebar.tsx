@@ -100,6 +100,7 @@ function NavSection({ title, icon: Icon, isActive, children }: NavSectionProps) 
 export function Sidebar() {
   const [location] = useLocation();
   const { userProfile } = useStore();
+  const sidebarRole = userProfile.role.trim() || "Operations";
 
   const purchaseActive = purchaseNavigation.some((i) => location === i.href);
   const vendorActive = vendorNavigation.some((i) => location === i.href);
@@ -121,7 +122,7 @@ export function Sidebar() {
         <span className="erp-sidebar-user-avatar">{userProfile.name.charAt(0)}</span>
         <div className="erp-sidebar-user-copy">
           <span className="erp-sidebar-user-name">{userProfile.name}</span>
-          <span className="erp-sidebar-user-role">Operations</span>
+          <span className="erp-sidebar-user-role">{sidebarRole}</span>
         </div>
       </div>
 

@@ -28,6 +28,10 @@ export default function Settings() {
   const [backupForm, setBackupForm] = useState({ backupEnabled: "0", backupFrequency: "weekly", backupLocation: "/backups" });
 
   useEffect(() => {
+    setProfileData(userProfile);
+  }, [userProfile]);
+
+  useEffect(() => {
     if (systemSettings) {
       setBackupForm({
         backupEnabled: String(systemSettings.backupEnabled ?? 0),
@@ -37,10 +41,14 @@ export default function Settings() {
     }
   }, [systemSettings]);
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUserProfile(profileData);
-    toast({ title: "Profile updated", description: "Your profile settings have been saved." });
+    await updateUserProfile({
+      name: profileData.name,
+      email: profileData.email,
+      role: profileData.role,
+    });
+    toast({ title: "Profile updated", description: "Your user profile settings have been saved." });
   };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
@@ -94,7 +102,7 @@ export default function Settings() {
       <Card><CardContent className="p-2">{tabs.map(tab => <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={cn("w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2", activeTab===tab.key ? "bg-primary text-primary-foreground" : "hover:bg-muted")}><tab.icon className="h-4 w-4" />{tab.label}</button>)}</CardContent></Card>
       <>
       {activeTab==="general" && <div className="grid gap-4 xl:grid-cols-2 items-stretch">
-        <Card className="h-full"><CardHeader><CardTitle>Profile</CardTitle></CardHeader><CardContent className="h-full"><form className="space-y-2 h-full flex flex-col" onSubmit={handleProfileUpdate}><Label>Name</Label><Input value={profileData.name} onChange={(e)=>setProfileData({...profileData,name:e.target.value})}/><Label>Email</Label><Input value={profileData.email} onChange={(e)=>setProfileData({...profileData,email:e.target.value})}/><div className="mt-auto pt-2"><Button type="submit">Save Profile</Button></div></form></CardContent></Card>
+        <Card className="h-full"><CardHeader><CardTitle>User Profile</CardTitle><CardDescription>Update the name and role details shown across the app, including the sidebar.</CardDescription></CardHeader><CardContent className="h-full"><form className="space-y-4 h-full flex flex-col" onSubmit={handleProfileUpdate}><div className="grid gap-2"><Label htmlFor="profile-display-name">Display Name</Label><Input id="profile-display-name" value={profileData.name} onChange={(e)=>setProfileData({...profileData,name:e.target.value})} placeholder="Enter your display name"/></div><div className="grid gap-2"><Label htmlFor="profile-role">Role / Department</Label><Input id="profile-role" value={profileData.role} onChange={(e)=>setProfileData({...profileData,role:e.target.value})} placeholder="Operations"/></div><div className="grid gap-2"><Label htmlFor="profile-email">Email</Label><Input id="profile-email" value={profileData.email} onChange={(e)=>setProfileData({...profileData,email:e.target.value})}/></div><div className="mt-auto pt-2"><Button type="submit">Save Profile</Button></div></form></CardContent></Card>
         <Card className="h-full"><CardHeader><CardTitle>Security</CardTitle></CardHeader><CardContent className="h-full"><form className="space-y-2 h-full flex flex-col" onSubmit={handlePasswordChange}><Label>Current Password</Label><Input type="password" value={passwordData.currentPassword} onChange={(e)=>setPasswordData({...passwordData,currentPassword:e.target.value})}/><Label>New Password</Label><Input type="password" value={passwordData.newPassword} onChange={(e)=>setPasswordData({...passwordData,newPassword:e.target.value})}/><Label>Confirm Password</Label><Input type="password" value={passwordData.confirmPassword} onChange={(e)=>setPasswordData({...passwordData,confirmPassword:e.target.value})}/>{passwordError && <p className="text-destructive text-sm">{passwordError}</p>}<div className="mt-auto pt-2"><Button type="submit">Change Password</Button></div></form></CardContent></Card>
       </div>}
 
