@@ -3,7 +3,7 @@ import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Download, ShoppingCart } from "lucide-react";
@@ -224,30 +224,11 @@ export default function RateComparison() {
             <div className="flex flex-col gap-4 py-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Select Vendor</label>
-                <Select value={convertVendorId} onValueChange={setConvertVendorId}>
-                  <SelectTrigger data-testid="select-convert-vendor">
-                    <SelectValue placeholder="Choose vendor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedVendorIds.map(vId => {
-                      const vendor = vendors.find(v => v.id.toString() === vId);
-                      return <SelectItem key={vId} value={vId}>{vendor?.name || 'Unknown'}</SelectItem>;
-                    })}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={vendors.filter((vendor) => selectedVendorIds.includes(vendor.id.toString()))} value={convertVendorId} onSelect={(val) => setConvertVendorId(val)} placeholder="Choose vendor" getOptionLabel={(vendor) => vendor.name} getOptionValue={(vendor) => vendor.id.toString()} getOptionDescription={(vendor) => vendor.address || null} data-testid="select-convert-vendor" noResultsText="No matching vendors" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Select Site</label>
-                <Select value={convertSiteId} onValueChange={setConvertSiteId}>
-                  <SelectTrigger data-testid="select-convert-site">
-                    <SelectValue placeholder="Choose site" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sites.map(s => (
-                      <SelectItem key={s.id} value={s.id.toString()}>{s.siteName || s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={sites} value={convertSiteId} onSelect={(val) => setConvertSiteId(val)} placeholder="Choose site" getOptionLabel={(site) => site.siteName || site.name} getOptionValue={(site) => site.id.toString()} getOptionDescription={(site) => site.status || null} data-testid="select-convert-site" noResultsText="No matching sites" />
               </div>
               <Button onClick={handleConvertToPO} disabled={!convertVendorId} data-testid="button-confirm-convert">
                 Create Purchase Order
