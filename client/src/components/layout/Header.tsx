@@ -1,4 +1,4 @@
-import { Search, Bell, Plus, FileText, CreditCard, ShoppingCart, FileCheck, UserCircle, Settings, LogOut } from "lucide-react";
+import { Search, Bell, Plus, FileText, CreditCard, ShoppingCart, FileCheck, UserCircle, Settings, LogOut, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,24 +36,43 @@ export function Header() {
 
   const totalNotifications = notifications.length;
 
+  const handleSidebarToggle = () => {
+    document.documentElement.classList.toggle('collapsed');
+    window.dispatchEvent(new CustomEvent('erp:sidebar-toggle'));
+  };
+
   return (
-    <header className="h-16 border-b bg-background flex items-center justify-between px-6 sticky top-0 z-10 shadow-sm/50">
-      <div className="flex items-center bg-muted/60 rounded-md px-3 py-2 w-96 border border-transparent focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
-        <Search className="w-4 h-4 text-muted-foreground mr-2" />
-        <input 
-          type="text" 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Global Search (POs, Vendors, Bills)..." 
-          className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground"
-          data-testid="input-search"
-        />
+    <header className="erp-topbar h-16 border-b bg-background flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shadow-sm/50 gap-4">
+      <div className="flex items-center gap-3 flex-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="erp-sidebar-toggle shrink-0"
+          onClick={handleSidebarToggle}
+          aria-label="Toggle sidebar"
+          data-testid="button-sidebar-toggle"
+        >
+          <PanelLeft className="w-5 h-5" />
+        </Button>
+
+        <div className="flex items-center bg-muted/60 rounded-md px-3 py-2 w-full max-w-96 border border-transparent focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+          <Search className="w-4 h-4 text-muted-foreground mr-2" />
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Global Search (POs, Vendors, Bills)..." 
+            className="bg-transparent border-none outline-none text-sm w-full placeholder:text-muted-foreground"
+            data-testid="input-search"
+          />
+        </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button className="gap-2 shadow-sm" size="sm" data-testid="button-quick-action">
+            <Button className="gap-2 shadow-sm hidden sm:inline-flex" size="sm" data-testid="button-quick-action">
               <Plus className="w-4 h-4" />
               Quick Action
             </Button>
@@ -119,7 +138,7 @@ export function Header() {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 rounded-full ml-2 bg-primary/10 hover:bg-primary/20" data-testid="button-user-menu">
+              <Button variant="ghost" className="h-8 w-8 rounded-full ml-1 md:ml-2 bg-primary/10 hover:bg-primary/20" data-testid="button-user-menu">
                   <UserCircle className="w-5 h-5 text-primary" />
               </Button>
           </DropdownMenuTrigger>
