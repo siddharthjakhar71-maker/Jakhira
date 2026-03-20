@@ -5,13 +5,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { useStore, type Material } from "@/lib/store";
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -41,140 +41,6 @@ const getSiteAddressDefaults = (site?: any) => ({
   billingAddress: site?.billTo || site?.address || "",
   shippingAddress: site?.shipTo || site?.address || "",
 });
-
-function MaterialAutocomplete({ materials, value, onSelect, onInputChange, inputRef, onFocus, onAddMaterial }: { materials: Material[]; value: string; onSelect: (materialId: string) => void; onInputChange?: () => void; inputRef?: (el: HTMLInputElement | null) => void; onFocus?: () => void; onAddMaterial: () => void; }) {
-  const [searchText, setSearchText] = useState("");
-  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [dropdownStyle, setDropdownStyle] = useState<Record<string, string | number>>({});
-  const internalInputRef = useRef<HTMLInputElement | null>(null);
-
-  const updateDropdownPosition = () => {
-    if (!internalInputRef.current) return;
-    const rect = internalInputRef.current.getBoundingClientRect();
-    setDropdownStyle({
-      position: "fixed",
-      top: rect.bottom,
-      left: rect.left,
-      width: rect.width,
-      zIndex: 9999,
-      maxHeight: 250,
-      overflowY: "auto",
-    });
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    updateDropdownPosition();
-    window.addEventListener("resize", updateDropdownPosition);
-    window.addEventListener("scroll", updateDropdownPosition, true);
-    return () => {
-      window.removeEventListener("resize", updateDropdownPosition);
-      window.removeEventListener("scroll", updateDropdownPosition, true);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!value) {
-      setSelectedMaterial(null);
-      setSearchText("");
-      return;
-    }
-
-    const matchedMaterial = materials.find((m) => m.id.toString() === value) || null;
-    setSelectedMaterial(matchedMaterial);
-    setSearchText(matchedMaterial?.name || "");
-  }, [materials, value]);
-
-  const matches = useMemo(() => {
-    const text = searchText.trim().toLowerCase();
-    if (!text) return materials.slice(0, 20);
-    return materials.filter((m) => m.name.toLowerCase().includes(text)).slice(0, 20);
-  }, [materials, searchText]);
-
-  useEffect(() => {
-    if (activeIndex >= matches.length) {
-      setActiveIndex(Math.max(matches.length - 1, 0));
-    }
-  }, [activeIndex, matches.length]);
-
-  const selectMaterial = (material: Material) => {
-    onSelect(material.id.toString());
-    setSelectedMaterial(material);
-    setSearchText(material.name);
-    setOpen(false);
-  };
-
-  return (
-    <div>
-      <div className="flex gap-2">
-        <Input
-          ref={(el) => {
-            internalInputRef.current = el;
-            inputRef?.(el);
-          }}
-          value={searchText}
-          placeholder="Search material"
-          onFocus={() => { setOpen(true); onFocus?.(); updateDropdownPosition(); }}
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
-          onChange={(e) => {
-            setSearchText(e.target.value);
-            setSelectedMaterial(null);
-            onInputChange?.();
-            setOpen(true);
-            setActiveIndex(0);
-            updateDropdownPosition();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setOpen(true);
-              setActiveIndex((prev) => Math.min(prev + 1, Math.max(matches.length - 1, 0)));
-            }
-            if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setActiveIndex((prev) => Math.max(prev - 1, 0));
-            }
-            if (e.key === "Escape") {
-              setOpen(false);
-            }
-            if (e.key === "Enter") {
-              const chosen = matches[activeIndex];
-              if (!chosen) return;
-              e.preventDefault();
-              selectMaterial(chosen);
-            }
-          }}
-          className="h-11"
-        />
-        <Button type="button" variant="outline" size="icon" className="h-11 w-11" onClick={onAddMaterial}>
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-      {open && createPortal(
-        <div style={dropdownStyle} className="rounded-md border bg-popover shadow-md">
-          {matches.map((material, index) => (
-            <button
-              type="button"
-              key={material.id}
-              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted ${activeIndex === index ? "bg-muted" : ""}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setActiveIndex(index);
-                selectMaterial(material);
-              }}
-            >
-              <span>{material.name}</span>
-              <span className="text-xs text-muted-foreground">{material.unit || "-"}</span>
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
 
 export default function PurchaseOrderCreate() {
   const { vendors, materials, sites, addPO, vendorMaterialRates } = useStore();
@@ -303,7 +169,7 @@ export default function PurchaseOrderCreate() {
                   billingCode: site?.billingCode || site?.poPrefix || "",
                 }));
               }}><SelectTrigger className="h-11"><SelectValue placeholder="Select site" /></SelectTrigger><SelectContent>{sites.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.siteName || s.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="lg:col-span-2"><Label>Vendor</Label><Select required value={formData.vendorId} onValueChange={(vendorId) => setFormData({ ...formData, vendorId })}><SelectTrigger className="h-11"><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent>{vendors.map((v) => <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="lg:col-span-2"><Label>Vendor</Label><SearchableSelect options={vendors} value={formData.vendorId} onSelect={(vendorId) => setFormData({ ...formData, vendorId })} placeholder="Select vendor" getOptionLabel={(vendor) => vendor.name} getOptionValue={(vendor) => vendor.id.toString()} getOptionDescription={(vendor) => vendor.address || null} inputClassName="h-11" noResultsText="No matching vendors" /></div>
               <div className="lg:col-span-2 flex gap-2"><Button type="button" variant="outline" className="w-full" onClick={() => setLocation("/pos")}>Cancel</Button><Button type="submit" className="w-full">Save</Button></div>
             </div>
           </CardContent>
@@ -376,11 +242,7 @@ export default function PurchaseOrderCreate() {
                     const amount = (Number(item.qty) || 0) * (Number(item.rate) || 0);
                     return <tr key={index} className={activeRow === index ? "bg-primary/5" : ""}>
                       <td className="p-2">{index + 1}</td>
-                      <td className="p-2"><MaterialAutocomplete materials={materialOptions} value={item.materialId} onSelect={(val) => selectMaterial(index, val)} onInputChange={() => {
-                        const next = [...items];
-                        next[index] = { ...next[index], materialId: "", rate: "" };
-                        setItems(next);
-                      }} inputRef={(el) => materialRefs.current[index] = el} onFocus={() => setActiveRow(index)} onAddMaterial={() => { setPendingMaterialRow(index); setMaterialModalOpen(true); }} /></td>
+                      <td className="p-2"><div className="flex gap-2"><SearchableSelect options={materialOptions} value={item.materialId} onSelect={(val) => selectMaterial(index, val)} placeholder="Search material" getOptionLabel={(material) => material.name} getOptionValue={(material) => material.id.toString()} getOptionDescription={(material) => material.unit || "-"} onInputChange={() => { const next = [...items]; next[index] = { ...next[index], materialId: "", rate: "" }; setItems(next); }} inputRef={(el) => materialRefs.current[index] = el} onFocus={() => setActiveRow(index)} inputClassName="h-11" noResultsText="No matching materials" /><Button type="button" variant="outline" size="icon" className="h-11 w-11" onClick={() => { setPendingMaterialRow(index); setMaterialModalOpen(true); }}><Plus className="h-4 w-4" /></Button></div></td>
                       <td className="p-2">{m?.unit || "-"}</td>
                       <td className="p-2"><Input ref={(el) => { qtyRefs.current[index] = el; }} type="number" step="0.01" value={item.qty} onFocus={() => setActiveRow(index)} onChange={(e) => setItems(items.map((row, i) => i === index ? { ...row, qty: e.target.value } : row))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItemRow(true); } }} className="h-11" /></td>
                       <td className="p-2"><Input type="number" step="0.01" value={item.rate} onFocus={() => setActiveRow(index)} onChange={(e) => setItems(items.map((row, i) => i === index ? { ...row, rate: e.target.value } : row))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItemRow(true); } }} className="h-11" /></td>

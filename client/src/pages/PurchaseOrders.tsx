@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -28,136 +29,6 @@ const getSiteAddressDefaults = (site?: any) => {
   const shipTo = site?.shipTo || site?.address || "";
   return { billingName, billTo, shippingName, shipTo };
 };
-
-function MaterialAutocomplete({
-  materials,
-  value,
-  onSelect,
-  onInputChange,
-  inputRef,
-  onFocus,
-  onAddMaterial,
-}: {
-  materials: Material[];
-  value: string;
-  onSelect: (materialId: string) => void;
-  onInputChange?: () => void;
-  inputRef?: (el: HTMLInputElement | null) => void;
-  onFocus?: () => void;
-  onAddMaterial: () => void;
-}) {
-  const selectedMaterial = materials.find((m) => m.id.toString() === value);
-  const [query, setQuery] = useState(selectedMaterial?.name || "");
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    setQuery(selectedMaterial?.name || "");
-  }, [selectedMaterial?.name]);
-
-  const matches = useMemo(() => {
-    const text = query.trim().toLowerCase();
-    if (!text) return materials.slice(0, 15);
-    return materials.filter((m) => m.name.toLowerCase().includes(text)).slice(0, 15);
-  }, [materials, query]);
-
-  useEffect(() => {
-    if (activeIndex >= matches.length) {
-      setActiveIndex(Math.max(matches.length - 1, 0));
-    }
-  }, [activeIndex, matches.length]);
-
-  const renderHighlighted = (name: string) => {
-    const text = query.trim();
-    if (!text) return name;
-    const idx = name.toLowerCase().indexOf(text.toLowerCase());
-    if (idx === -1) return name;
-    return (
-      <>
-        {name.slice(0, idx)}
-        <span className="bg-yellow-100 text-foreground rounded-sm px-0.5">{name.slice(idx, idx + text.length)}</span>
-        {name.slice(idx + text.length)}
-      </>
-    );
-  };
-
-  return (
-    <div className="overflow-visible">
-      <div className="flex gap-2">
-        <div className="relative flex-1 overflow-visible">
-          <Input
-            ref={inputRef}
-            value={query}
-            placeholder="Type material name"
-            onFocus={() => {
-              setOpen(true);
-              onFocus?.();
-            }}
-            onBlur={() => setTimeout(() => setOpen(false), 120)}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              onInputChange?.();
-              setOpen(true);
-              setActiveIndex(0);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setOpen(true);
-                setActiveIndex((prev) => Math.min(prev + 1, Math.max(matches.length - 1, 0)));
-              }
-              if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setActiveIndex((prev) => Math.max(prev - 1, 0));
-              }
-              if (e.key === "Escape") {
-                setOpen(false);
-              }
-              if (e.key === "Enter" && open) {
-                const chosen = matches[activeIndex];
-                if (!chosen) return;
-                e.preventDefault();
-                onSelect(chosen.id.toString());
-                setQuery(chosen.name);
-                setOpen(false);
-              }
-            }}
-            className="h-9"
-          />
-
-          {open && (
-            <div className="absolute left-0 top-full z-[9999] mt-1 max-h-[250px] w-full overflow-y-auto overscroll-contain rounded-md border border-[#ddd] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-              {matches.length === 0 ? (
-                <div className="p-2 text-xs text-muted-foreground">No matching materials</div>
-              ) : (
-                matches.map((material, index) => (
-                  <button
-                    type="button"
-                    key={material.id}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted ${activeIndex === index ? 'bg-muted' : ''}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      onSelect(material.id.toString());
-                      setQuery(material.name);
-                      setActiveIndex(index);
-                      setOpen(false);
-                    }}
-                  >
-                    <span>{renderHighlighted(material.name)}</span>
-                    <span className="text-xs text-muted-foreground">{material.unit || '-'}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-        <Button type="button" variant="outline" size="icon" className="h-9 w-9" onClick={onAddMaterial}>
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export default function PurchaseOrders() {
   const { pos, vendors, materials, sites, addPO, updatePO, deletePO, searchQuery, userProfile, poTemplates, templateStyles, vendorMaterialRates } = useStore();
@@ -494,37 +365,11 @@ export default function PurchaseOrders() {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Site / Project *</Label>
-                      <Select
-                        required
-                        value={formData.siteId}
-                        onValueChange={(val) => {
-                          const nextSite = sites.find((s) => s.id.toString() === val);
-                          const defaults = getSiteAddressDefaults(nextSite);
-                          setFormData((prev) => ({
-                            ...prev,
-                            siteId: val,
-                            billingName: defaults.billingName,
-                            billingAddress: defaults.billTo,
-                            shippingAddress: prev.sameAsBilling ? defaults.billTo : defaults.shipTo,
-                            siteCode: nextSite?.siteCode || '',
-                            billingCode: nextSite?.billingCode || nextSite?.poPrefix || ''
-                          }));
-                        }}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
-                        <SelectContent>
-                          {sites.map(s => <SelectItem key={s.id} value={s.id.toString()}><div className='flex items-center gap-2'><span>{s.siteName || s.name}</span><Badge className={s.status === 'Active' ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100' : s.status === 'Completed' ? 'bg-blue-100 text-blue-800 hover:bg-blue-100' : 'bg-orange-100 text-orange-800 hover:bg-orange-100'}>{s.status}</Badge></div></SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect options={sites} value={formData.siteId} onSelect={(val) => { const nextSite = sites.find((s) => s.id.toString() === val); const defaults = getSiteAddressDefaults(nextSite); setFormData((prev) => ({ ...prev, siteId: val, billingName: defaults.billingName, billingAddress: defaults.billTo, shippingAddress: prev.sameAsBilling ? defaults.billTo : defaults.shipTo, siteCode: nextSite?.siteCode || '', billingCode: nextSite?.billingCode || nextSite?.poPrefix || '' })); }} placeholder="Select site" getOptionLabel={(site) => site.siteName || site.name} getOptionValue={(site) => site.id.toString()} getOptionDescription={(site) => site.status || null} inputClassName="h-10" noResultsText="No matching sites" />
                     </div>
                     <div className="grid gap-2">
                       <Label>Vendor *</Label>
-                      <Select required value={formData.vendorId} onValueChange={handleVendorChange}>
-                        <SelectTrigger data-testid="select-po-vendor"><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                        <SelectContent>
-                          {vendors.map(v => <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <SearchableSelect options={vendors} value={formData.vendorId} onSelect={(val) => handleVendorChange(val)} placeholder="Select vendor" getOptionLabel={(vendor) => vendor.name} getOptionValue={(vendor) => vendor.id.toString()} getOptionDescription={(vendor) => vendor.address || null} data-testid="select-po-vendor" inputClassName="h-10" noResultsText="No matching vendors" />
                       {selectedVendor && (
                         <p className="text-xs text-muted-foreground">
                           Vendor Address: {selectedVendor.address || '-'}
@@ -659,23 +504,7 @@ export default function PurchaseOrders() {
                              )}
                              <div className="col-span-12 md:col-span-4 grid gap-2">
                                 <Label className="text-xs">Material *</Label>
-                                <MaterialAutocomplete
-                                  materials={materialOptions}
-                                  value={item.materialId}
-                                  inputRef={(el) => { materialRefs.current[index] = el; }}
-                                  onFocus={() => setActiveRow(index)}
-                                  onInputChange={() => {
-                                    updateItem(index, 'materialId', '');
-                                    updateItem(index, 'rate', '');
-                                  }}
-                                  onSelect={(val) => {
-                                    handleMaterialChange(index, val);
-                                  }}
-                                  onAddMaterial={() => {
-                                    setPendingMaterialRow(index);
-                                    setMaterialModalOpen(true);
-                                  }}
-                                />
+                                <div className="flex gap-2"><SearchableSelect options={materialOptions} value={item.materialId} onSelect={(val) => { handleMaterialChange(index, val); }} placeholder="Type material name" getOptionLabel={(material) => material.name} getOptionValue={(material) => material.id.toString()} getOptionDescription={(material) => material.unit || "-"} inputRef={(el) => { materialRefs.current[index] = el; }} onFocus={() => setActiveRow(index)} onInputChange={() => { updateItem(index, 'materialId', ''); updateItem(index, 'rate', ''); }} inputClassName="h-9" noResultsText="No matching materials" /><Button type="button" variant="outline" size="icon" className="h-9 w-9" onClick={() => { setPendingMaterialRow(index); setMaterialModalOpen(true); }}><Plus className="h-4 w-4" /></Button></div>
                              </div>
                              <div className="col-span-6 md:col-span-2 grid gap-2">
                                 <Label className="text-xs">Unit</Label>

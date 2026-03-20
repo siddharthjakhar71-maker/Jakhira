@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { useStore } from "@/lib/store";
 import { useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -71,7 +71,7 @@ export default function GRNCreate() {
         >
           <div className="min-w-[160px] flex-1"><Label>Date</Label><Input type="date" className="h-11" value={grnDate} onChange={(e) => setGrnDate(e.target.value)} /></div>
           <div className="min-w-[220px] flex-1"><Label>Site</Label><Input className="h-11" readOnly value={selectedSite?.siteName || selectedSite?.name || "-"} /></div>
-          <div className="min-w-[200px] flex-1"><Label>PO Reference</Label><Select required value={selectedPoDisplayId} onValueChange={onPoChange}><SelectTrigger className="h-11"><SelectValue placeholder="Select PO" /></SelectTrigger><SelectContent>{pendingPOs.map((po) => <SelectItem key={po.id} value={po.displayId}>{po.displayId}</SelectItem>)}</SelectContent></Select></div>
+          <div className="min-w-[200px] flex-1"><Label>PO Reference</Label><SearchableSelect options={pendingPOs} value={selectedPoDisplayId} onSelect={(val) => onPoChange(val)} placeholder="Select PO" getOptionLabel={(po) => po.displayId} getOptionValue={(po) => po.displayId} getOptionDescription={(po) => sites.find((s) => s.id.toString() === po.siteId)?.siteName || sites.find((s) => s.id.toString() === po.siteId)?.name || null} inputClassName="h-11" noResultsText="No matching purchase orders" /></div>
           <div className="min-w-[140px]"><Label>Status</Label><div className="h-11 flex items-center"><Badge variant="outline" className="bg-amber-50 text-amber-700">Pending Bill</Badge></div></div>
         </ERPHeader>
 

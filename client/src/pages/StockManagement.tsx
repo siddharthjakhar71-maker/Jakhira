@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
@@ -116,17 +116,7 @@ export default function StockManagement() {
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
                   <div className="flex-1">
                     <Label htmlFor="site-filter">Filter by Site</Label>
-                    <Select value={filterSiteId} onValueChange={setFilterSiteId}>
-                      <SelectTrigger id="site-filter" data-testid="select-filter-site">
-                        <SelectValue placeholder="All Sites" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Sites</SelectItem>
-                        {sites.map(site => (
-                          <SelectItem key={site.id} value={site.id.toString()}>{site.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect options={[{ id: "all", name: "All Sites", siteName: "All Sites", status: "" }, ...sites]} value={filterSiteId} onSelect={(val) => setFilterSiteId(val)} placeholder="All Sites" getOptionLabel={(site) => site.siteName || site.name} getOptionValue={(site) => site.id.toString()} getOptionDescription={(site) => (site.id === "all" ? "Show every site" : site.status || null)} data-testid="select-filter-site" />
                   </div>
                   <div className="flex-[2]">
                     <Label htmlFor="material-search">Search Material</Label>
@@ -203,16 +193,7 @@ export default function StockManagement() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Site</Label>
-                        <Select required value={issueSiteId} onValueChange={setIssueSiteId}>
-                          <SelectTrigger data-testid="select-issue-site">
-                            <SelectValue placeholder="Select Site" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sites.map(site => (
-                              <SelectItem key={site.id} value={site.id.toString()}>{site.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SearchableSelect options={sites} value={issueSiteId} onSelect={(val) => setIssueSiteId(val)} placeholder="Select Site" getOptionLabel={(site) => site.siteName || site.name} getOptionValue={(site) => site.id.toString()} getOptionDescription={(site) => site.status || null} data-testid="select-issue-site" noResultsText="No matching sites" />
                       </div>
                       <div className="space-y-2">
                         <Label>Date</Label>
@@ -248,19 +229,7 @@ export default function StockManagement() {
                         <div key={index} className="flex items-end gap-3 p-3 border rounded-lg bg-muted/30">
                           <div className="flex-1 space-y-2">
                             <Label className="text-xs">Material</Label>
-                            <Select 
-                              value={item.materialId} 
-                              onValueChange={(val) => handleUpdateIssueItem(index, "materialId", val)}
-                            >
-                              <SelectTrigger data-testid={`select-item-material-${index}`}>
-                                <SelectValue placeholder="Select Material" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {materials.map(m => (
-                                  <SelectItem key={m.id} value={m.id.toString()}>{m.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <SearchableSelect options={materials} value={item.materialId} onSelect={(val) => handleUpdateIssueItem(index, "materialId", val)} placeholder="Select Material" getOptionLabel={(material) => material.name} getOptionValue={(material) => material.id.toString()} getOptionDescription={(material) => material.unit || material.category || null} data-testid={`select-item-material-${index}`} noResultsText="No matching materials" />
                           </div>
                           <div className="w-32 space-y-2">
                             <Label className="text-xs">Quantity</Label>

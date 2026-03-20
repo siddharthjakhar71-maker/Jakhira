@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { Plus, Trash2, Save, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { api, queryKeys } from "@/lib/api";
@@ -98,17 +98,7 @@ export default function VendorRateList() {
           </div>
           <div className="flex gap-3 items-center">
             <div className="w-[200px]">
-              <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-                <SelectTrigger data-testid="select-filter-vendor">
-                  <SelectValue placeholder="Filter by Vendor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Vendors</SelectItem>
-                  {vendors.map(v => (
-                    <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect options={[{ id: "all", name: "All Vendors", address: "" }, ...vendors]} value={selectedVendorId} onSelect={(val) => setSelectedVendorId(val)} placeholder="Filter by vendor" getOptionLabel={(vendor) => vendor.name} getOptionValue={(vendor) => vendor.id.toString()} getOptionDescription={(vendor) => (vendor.id === "all" ? "Show every vendor" : vendor.address || null)} data-testid="select-filter-vendor" noResultsText="No matching vendors" />
             </div>
             <input
               ref={fileInputRef}
@@ -214,29 +204,11 @@ export default function VendorRateList() {
             <div className="flex flex-col gap-4 py-4">
               <div>
                 <Label>Vendor</Label>
-                <Select value={formVendorId} onValueChange={setFormVendorId}>
-                  <SelectTrigger data-testid="select-add-vendor">
-                    <SelectValue placeholder="Select vendor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vendors.map(v => (
-                      <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={vendors} value={formVendorId} onSelect={(val) => setFormVendorId(val)} placeholder="Select vendor" getOptionLabel={(vendor) => vendor.name} getOptionValue={(vendor) => vendor.id.toString()} getOptionDescription={(vendor) => vendor.address || null} data-testid="select-add-vendor" noResultsText="No matching vendors" />
               </div>
               <div>
                 <Label>Material</Label>
-                <Select value={formMaterialId} onValueChange={setFormMaterialId}>
-                  <SelectTrigger data-testid="select-add-material">
-                    <SelectValue placeholder="Select material" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {materials.map(m => (
-                      <SelectItem key={m.id} value={m.id.toString()}>{m.name} {m.unit ? `(${m.unit})` : ''}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect options={materials} value={formMaterialId} onSelect={(val) => setFormMaterialId(val)} placeholder="Select material" getOptionLabel={(material) => material.name} getOptionValue={(material) => material.id.toString()} getOptionDescription={(material) => material.unit || null} data-testid="select-add-material" noResultsText="No matching materials" />
               </div>
               <div>
                 <Label>Rate</Label>
