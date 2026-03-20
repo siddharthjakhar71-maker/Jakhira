@@ -317,8 +317,7 @@
 }
 
 .erp-app-shell {
-  display: grid;
-  grid-template-columns: var(--erp-sidebar-width) minmax(0, 1fr);
+  display: block;
   width: 100%;
   min-height: 100vh;
 }
@@ -326,6 +325,7 @@
 .erp-app-main {
   min-width: 0;
   margin-left: var(--erp-sidebar-width);
+  width: calc(100% - var(--erp-sidebar-width));
 }
 
 .erp-topbar-inner {
@@ -345,7 +345,7 @@
 
 @media (max-width: 767px) {
   .erp-app-shell {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
   }
 
   .erp-sidebar {
@@ -355,6 +355,7 @@
 
   .erp-app-main {
     margin-left: min(var(--erp-sidebar-width), 100vw);
+    width: calc(100% - min(var(--erp-sidebar-width), 100vw));
   }
 
   .erp-topbar-inner {
