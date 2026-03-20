@@ -41,7 +41,7 @@ export type VendorMaterialRateEntry = { id: number; vendorId: string; materialId
 type StoreContextType = {
   isAuthenticated: boolean; login: (email: string, password: string) => Promise<boolean>; logout: () => void;
   searchQuery: string; setSearchQuery: (q: string) => void;
-  userProfile: UserProfile; updateUserProfile: (p: Partial<UserProfile>) => void; changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  userProfile: UserProfile; updateUserProfile: (p: Partial<UserProfile>) => Promise<UserProfile>; changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   systemSettings: SystemSettings | null;
   sites: Site[]; addSite: (s: Omit<Site, 'id'>) => void; updateSite: (id: number, s: Partial<Site>) => void; deleteSite: (id: number) => void; addSites: (s: Omit<Site, 'id'>[]) => void;
   vendors: Vendor[]; addVendor: (v: Omit<Vendor, 'id'>) => void; updateVendor: (id: number, v: Partial<Vendor>) => void; deleteVendor: (id: number) => void; addVendors: (v: Omit<Vendor, 'id'>[]) => void;
@@ -133,9 +133,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   };
 
-  const updateUserProfile = async (p: Partial<UserProfile>) => {
-    await api.updateProfile(p);
-    queryClient.invalidateQueries({ queryKey: queryKeys.profile });
+  const updateUserProfile = async (p: Partial<UserProfile>): Promise<UserProfile> => {
+    const response = await api.updateProfile(p);
+    const nextProfile = response.profile as UserProfile;
+    queryClient.setQueryData(queryKeys.profile, { profile: nextProfile });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.profile });
+    return nextProfile;
   };
 
   const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
