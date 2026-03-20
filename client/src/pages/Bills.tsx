@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, ArrowLeft } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -266,19 +266,40 @@ export default function Bills() {
             {viewingBill && (
               <div className="space-y-6">
                 <div className="rounded-lg border bg-muted/30 p-4">
-                  <h3 className="font-semibold mb-3">Header</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div><span className="text-muted-foreground">Document Number:</span><p className="font-medium">{viewingBill.displayId}</p></div>
-                    <div><span className="text-muted-foreground">Date:</span><p className="font-medium">{viewingBill.date}</p></div>
-                    <div><span className="text-muted-foreground">Status:</span><p><Badge variant="outline" className={viewingBill.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : viewingBill.status === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-destructive/10 text-destructive'}>{viewingBill.status}</Badge></p></div>
-                    <div><span className="text-muted-foreground">Site:</span><p className="font-medium">{viewingSite?.siteName || viewingSite?.name || '-'}</p></div>
-                    <div><span className="text-muted-foreground">Vendor:</span><p className="font-medium">{viewingVendor?.name || '-'}</p></div>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Bill</p>
+                      <h3 className="text-2xl font-bold tracking-tight">{viewingBill.displayId}</h3>
+                    </div>
+                    <Badge variant="outline" className={viewingBill.status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : viewingBill.status === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-destructive/10 text-destructive'}>{viewingBill.status}</Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
+                    <div><span className="text-muted-foreground">Bill Date:</span><p className="font-medium">{viewingBill.date}</p></div>
                     <div><span className="text-muted-foreground">PO Reference:</span><p className="font-medium">{viewingBill.poId}</p></div>
+                    <div><span className="text-muted-foreground">Vendor:</span><p className="font-medium">{viewingVendor?.name || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Site:</span><p className="font-medium">{viewingSite?.siteName || viewingSite?.name || '-'}</p></div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Bill Details</h3>
+                    <div><span className="text-muted-foreground">Document Number:</span><p className="font-medium">{viewingBill.displayId}</p></div>
+                    <div><span className="text-muted-foreground">Vendor Invoice No:</span><p className="font-medium">{viewingBill.vendorInvoiceNo || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Due Date:</span><p className="font-medium">{viewingBill.dueDate || '-'}</p></div>
+                    <div><span className="text-muted-foreground">GRN Reference:</span><p className="font-medium">{viewingBill.grnId || '-'}</p></div>
+                  </div>
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Party Details</h3>
+                    <div><span className="text-muted-foreground">Vendor Name:</span><p className="font-medium">{viewingVendor?.name || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Site Name:</span><p className="font-medium">{viewingSite?.siteName || viewingSite?.name || '-'}</p></div>
+                    <div><span className="text-muted-foreground">PO Reference:</span><p className="font-medium">{viewingBill.poId}</p></div>
+                    <div><span className="text-muted-foreground">Status:</span><p className="font-medium">{viewingBill.status}</p></div>
                   </div>
                 </div>
 
                 <div className="rounded-lg border p-4 space-y-4">
-                  <h3 className="font-semibold">Details</h3>
+                  <h3 className="font-semibold">Items</h3>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -312,7 +333,16 @@ export default function Bills() {
                   </div>
                 </div>
 
-                <div className="text-xs text-muted-foreground">Read-only mode. Editing remains a separate action and is only enabled while status is Draft/Unpaid.</div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setViewingBillId(null); handleOpenEdit(viewingBill); }}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => setViewingBillId(null)}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>

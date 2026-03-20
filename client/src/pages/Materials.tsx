@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Upload, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Upload, Eye, ArrowLeft } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -170,14 +170,47 @@ export default function Materials() {
 
 
         <Dialog open={!!viewMaterial} onOpenChange={(open) => !open && setViewMaterial(null)}>
-          <DialogContent>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Material Details</DialogTitle></DialogHeader>
             {viewMaterial && (
-              <div className="space-y-2 text-sm">
-                <p><strong>Name:</strong> {viewMaterial.name}</p>
-                <p><strong>Category:</strong> {viewMaterial.category || '-'}</p>
-                <p><strong>Unit:</strong> {viewMaterial.unit || '-'}</p>
-                <p><strong>Default Rate:</strong> ₹{(viewMaterial.defaultRate || 0).toLocaleString()}</p>
+              <div className="space-y-6">
+                <div className="rounded-lg border bg-muted/30 p-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Material</p>
+                      <h3 className="text-2xl font-bold tracking-tight">{viewMaterial.name}</h3>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
+                    <div><span className="text-muted-foreground">Category:</span><p className="font-medium">{viewMaterial.category || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Unit:</span><p className="font-medium">{viewMaterial.unit || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Default Rate:</span><p className="font-medium">₹{Number(viewMaterial.defaultRate || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Material Information</h3>
+                    <div><span className="text-muted-foreground">Material Name:</span><p className="font-medium">{viewMaterial.name}</p></div>
+                    <div><span className="text-muted-foreground">Category:</span><p className="font-medium">{viewMaterial.category || '-'}</p></div>
+                  </div>
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Commercial Details</h3>
+                    <div><span className="text-muted-foreground">Unit of Measurement:</span><p className="font-medium">{viewMaterial.unit || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Default Rate:</span><p className="font-medium">₹{Number(viewMaterial.defaultRate || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setViewMaterial(null); handleOpenEdit(viewMaterial); }}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => setViewMaterial(null)}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>

@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, ArrowLeft } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -226,7 +226,7 @@ export default function GRN() {
         </div>
 
         <Dialog open={!!viewingGrnId} onOpenChange={(isOpen) => !isOpen && setViewingGrnId(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>View GRN</DialogTitle>
             </DialogHeader>
@@ -234,19 +234,38 @@ export default function GRN() {
             {viewingGrn && (
               <div className="space-y-6">
                 <div className="rounded-lg border bg-muted/30 p-4">
-                  <h3 className="font-semibold mb-3">Header</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div><span className="text-muted-foreground">Document Number:</span><p className="font-medium">{viewingGrn.displayId}</p></div>
-                    <div><span className="text-muted-foreground">Date:</span><p className="font-medium">{viewingGrn.date}</p></div>
-                    <div><span className="text-muted-foreground">Status:</span><p><Badge variant="outline" className={viewingGrn.status === 'Billed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}>{viewingGrn.status}</Badge></p></div>
-                    <div><span className="text-muted-foreground">Site:</span><p className="font-medium">{viewingSite?.siteName || viewingSite?.name || '-'}</p></div>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Goods Receipt Note</p>
+                      <h3 className="text-2xl font-bold tracking-tight">{viewingGrn.displayId}</h3>
+                    </div>
+                    <Badge variant="outline" className={viewingGrn.status === 'Billed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}>{viewingGrn.status}</Badge>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
+                    <div><span className="text-muted-foreground">GRN Date:</span><p className="font-medium">{viewingGrn.date}</p></div>
+                    <div><span className="text-muted-foreground">PO Reference:</span><p className="font-medium">{viewingGrn.poId}</p></div>
                     <div><span className="text-muted-foreground">Vendor:</span><p className="font-medium">{viewingVendor?.name || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Site:</span><p className="font-medium">{viewingSite?.siteName || viewingSite?.name || '-'}</p></div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Receipt Details</h3>
+                    <div><span className="text-muted-foreground">Document Number:</span><p className="font-medium">{viewingGrn.displayId}</p></div>
+                    <div><span className="text-muted-foreground">Receipt Date:</span><p className="font-medium">{viewingGrn.date}</p></div>
+                    <div><span className="text-muted-foreground">Total Received Qty:</span><p className="font-medium">{viewMaterialTotalQty}</p></div>
+                  </div>
+                  <div className="rounded-lg border p-4 text-sm space-y-2">
+                    <h3 className="font-semibold">Reference Details</h3>
+                    <div><span className="text-muted-foreground">Vendor Name:</span><p className="font-medium">{viewingVendor?.name || '-'}</p></div>
+                    <div><span className="text-muted-foreground">Site Name:</span><p className="font-medium">{viewingSite?.siteName || viewingSite?.name || '-'}</p></div>
                     <div><span className="text-muted-foreground">PO Reference:</span><p className="font-medium">{viewingGrn.poId}</p></div>
                   </div>
                 </div>
 
                 <div className="rounded-lg border p-4 space-y-4">
-                  <h3 className="font-semibold">Details</h3>
+                  <h3 className="font-semibold">Items</h3>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -266,14 +285,23 @@ export default function GRN() {
                     </TableBody>
                   </Table>
 
-                  <div className="space-y-1 text-sm rounded-md bg-muted/30 p-3">
+                  <div className="space-y-1 text-sm rounded-md bg-muted/30 p-3 md:w-2/3 ml-auto">
                     <div className="flex justify-between"><span>Charges:</span><span>₹0.00</span></div>
                     <div className="flex justify-between"><span>GST:</span><span>₹0.00</span></div>
                     <div className="flex justify-between font-semibold border-t pt-2"><span>Total Qty:</span><span>{viewMaterialTotalQty}</span></div>
                   </div>
                 </div>
 
-                <div className="text-xs text-muted-foreground">Read-only mode. Editing is available separately from the list actions for Draft records only.</div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setViewingGrnId(null); handleOpenEdit(viewingGrn); }}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button variant="secondary" onClick={() => setViewingGrnId(null)}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
