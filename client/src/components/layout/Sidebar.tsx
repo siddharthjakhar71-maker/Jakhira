@@ -220,7 +220,7 @@ export function Sidebar() {
       >
         <div className="erp-sidebar-brand">
           <img
-            src="/jakhira_logo_clean.png"
+            src="/Jakhira.png"
             alt="Jakhira Logo"
             className="w-full h-auto object-contain max-h-[72px]"
           />
