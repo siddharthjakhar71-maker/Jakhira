@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +20,14 @@ import { api } from "@/lib/api";
 import type { POTemplateConfig, LayoutBlock } from "@/lib/store";
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
+
+const getSiteAddressDefaults = (site?: any) => {
+  const billingName = site?.billingName || site?.projectName || site?.siteName || site?.name || "";
+  const billTo = site?.billTo || site?.address || "";
+  const shippingName = billingName;
+  const shipTo = site?.shipTo || site?.address || "";
+  return { billingName, billTo, shippingName, shipTo };
+};
 
 function MaterialAutocomplete({
   materials,
@@ -163,6 +172,10 @@ export default function PurchaseOrders() {
     expectedDelivery: '',
     withGst: true,
     billingName: '',
+    billTo: '',
+    shippingName: '',
+    shipTo: '',
+    shippingSameAsBilling: false,
     siteCode: '',
     billingCode: '',
     enableEstimatedCartage: false,
@@ -211,15 +224,21 @@ export default function PurchaseOrders() {
 
 
   const handleOpenEdit = (p: any) => {
+      const currentSite = sites.find(s => s.id.toString() === p.siteId);
+      const defaults = getSiteAddressDefaults(currentSite);
       setFormData({ 
           siteId: p.siteId || '', 
           vendorId: p.vendorId, 
           date: p.date, 
           expectedDelivery: p.expectedDelivery || '',
           withGst: true,
-          billingName: p.billingName || '',
-          siteCode: p.siteCode || sites.find(s => s.id.toString() === p.siteId)?.siteCode || '',
-          billingCode: p.billingCode || p.prefix || sites.find(s => s.id.toString() === p.siteId)?.billingCode || sites.find(s => s.id.toString() === p.siteId)?.poPrefix || '',
+          billingName: p.billingName || defaults.billingName,
+          billTo: p.billTo || defaults.billTo,
+          shippingName: p.shippingName || defaults.shippingName,
+          shipTo: p.shipTo || defaults.shipTo,
+          shippingSameAsBilling: !!p.billTo && !!p.shipTo && p.billTo === p.shipTo && (p.shippingName || p.billingName || defaults.billingName) === (p.billingName || defaults.billingName),
+          siteCode: p.siteCode || currentSite?.siteCode || '',
+          billingCode: p.billingCode || p.prefix || currentSite?.billingCode || currentSite?.poPrefix || '',
           enableEstimatedCartage: Number(p.estimatedCartage ?? p.freightAmount ?? 0) > 0,
           estimatedCartage: (p.estimatedCartage ?? p.freightAmount ?? 0).toString(),
           otherEstimatedCharges: (p.otherEstimatedCharges ?? 0).toString()
@@ -320,6 +339,14 @@ export default function PurchaseOrders() {
         alert("Each row must have Qty > 0 and Rate >= 0.");
         return;
     }
+    if (!formData.billingName.trim() || !formData.billTo.trim()) {
+        alert("Billing name and billing address are required.");
+        return;
+    }
+    if (!formData.shippingSameAsBilling && (!formData.shippingName.trim() || !formData.shipTo.trim())) {
+        alert("Shipping name and shipping address are required when shipping differs from billing.");
+        return;
+    }
 
     const processedItems = meaningfulItems.map(item => {
         const qty = Number(item.qty) || 0;
@@ -343,6 +370,9 @@ export default function PurchaseOrders() {
       subTotal: getEstimatedSubTotal(),
       gstAmount: calculateTaxAmount(),
       billingName: formData.billingName,
+      billTo: formData.billTo,
+      shippingName: formData.shippingSameAsBilling ? formData.billingName : formData.shippingName,
+      shipTo: formData.shippingSameAsBilling ? formData.billTo : formData.shipTo,
       billingCode: formData.billingCode,
       siteCode: formData.siteCode
     };
@@ -354,7 +384,7 @@ export default function PurchaseOrders() {
     }
 
     setEditingId(null);
-    setFormData({ siteId: '', vendorId: '', date: new Date().toISOString().split('T')[0], expectedDelivery: '', withGst: true, billingName: '', siteCode: '', billingCode: '', enableEstimatedCartage: false, estimatedCartage: '0', otherEstimatedCharges: '0' });
+    setFormData({ siteId: '', vendorId: '', date: new Date().toISOString().split('T')[0], expectedDelivery: '', withGst: true, billingName: '', billTo: '', shippingName: '', shipTo: '', shippingSameAsBilling: false, siteCode: '', billingCode: '', enableEstimatedCartage: false, estimatedCartage: '0', otherEstimatedCharges: '0' });
     setItems([{ materialId: '', qty: '', rate: '', taxPercent: '0' }]);
     setActiveRow(null);
   };
@@ -445,7 +475,7 @@ export default function PurchaseOrders() {
             <Dialog open={editingId !== null} onOpenChange={(isOpen) => {
               if (!isOpen) {
                 setEditingId(null);
-                setFormData({ siteId: '', vendorId: '', date: new Date().toISOString().split('T')[0], expectedDelivery: '', withGst: true, billingName: '', siteCode: '', billingCode: '', enableEstimatedCartage: false, estimatedCartage: '0', otherEstimatedCharges: '0' });
+                setFormData({ siteId: '', vendorId: '', date: new Date().toISOString().split('T')[0], expectedDelivery: '', withGst: true, billingName: '', billTo: '', shippingName: '', shipTo: '', shippingSameAsBilling: false, siteCode: '', billingCode: '', enableEstimatedCartage: false, estimatedCartage: '0', otherEstimatedCharges: '0' });
                 setItems([{ materialId: '', qty: '', rate: '', taxPercent: '0' }]);
                 setActiveRow(null);
               }
@@ -460,7 +490,8 @@ export default function PurchaseOrders() {
                       <Label>Site / Project *</Label>
                       <Select required value={formData.siteId} onValueChange={(val) => {
                         const nextSite = sites.find(s => s.id.toString() === val);
-                        setFormData({...formData, siteId: val, billingName: nextSite?.billingName || nextSite?.projectName || nextSite?.siteName || '', siteCode: nextSite?.siteCode || '', billingCode: nextSite?.billingCode || nextSite?.poPrefix || ''});
+                        const defaults = getSiteAddressDefaults(nextSite);
+                        setFormData((prev) => ({...prev, siteId: val, billingName: defaults.billingName, billTo: defaults.billTo, shippingName: prev.shippingSameAsBilling ? defaults.billingName : defaults.shippingName, shipTo: prev.shippingSameAsBilling ? defaults.billTo : defaults.shipTo, siteCode: nextSite?.siteCode || '', billingCode: nextSite?.billingCode || nextSite?.poPrefix || ''}));
                       }}>
                         <SelectTrigger><SelectValue placeholder="Select site" /></SelectTrigger>
                         <SelectContent>
@@ -483,15 +514,37 @@ export default function PurchaseOrders() {
                       )}
                     </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label>Billing Name</Label>
-                  <Input
-                    value={formData.billingName}
-                    readOnly
-                    placeholder="Auto-filled from site"
-                    data-testid="input-po-billing-name"
-                  />
-                  <p className="text-xs text-muted-foreground">Auto-filled from the selected site.</p>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <Card className="border bg-muted/20 shadow-none">
+                    <CardContent className="space-y-4 p-4">
+                      <div className="space-y-1"><h4 className="text-sm font-semibold">Billing Details</h4><p className="text-xs text-muted-foreground">Auto-filled from the selected site and editable when needed.</p></div>
+                      <div className="grid gap-2">
+                        <Label>Billing Name *</Label>
+                        <Input value={formData.billingName} onChange={(e) => setFormData({ ...formData, billingName: e.target.value, ...(formData.shippingSameAsBilling ? { shippingName: e.target.value } : {}) })} placeholder="Billing name" data-testid="input-po-billing-name" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Billing Address *</Label>
+                        <Textarea value={formData.billTo} onChange={(e) => setFormData({ ...formData, billTo: e.target.value, ...(formData.shippingSameAsBilling ? { shipTo: e.target.value } : {}) })} placeholder="Billing address" className="min-h-[132px]" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border bg-muted/20 shadow-none">
+                    <CardContent className="space-y-4 p-4">
+                      <div className="space-y-1"><h4 className="text-sm font-semibold">Shipping Details</h4><p className="text-xs text-muted-foreground">Use the site shipping address or override it for this PO only.</p></div>
+                      <label className="flex items-center gap-3 rounded-md border bg-background p-3 text-sm font-medium">
+                        <input type="checkbox" checked={formData.shippingSameAsBilling} onChange={(e) => setFormData((prev) => ({ ...prev, shippingSameAsBilling: e.target.checked, shippingName: e.target.checked ? prev.billingName : prev.shippingName || prev.billingName, shipTo: e.target.checked ? prev.billTo : prev.shipTo }))} />
+                        Shipping same as Billing
+                      </label>
+                      <div className="grid gap-2">
+                        <Label>Shipping Name {formData.shippingSameAsBilling ? '' : '*'}</Label>
+                        <Input value={formData.shippingSameAsBilling ? formData.billingName : formData.shippingName} disabled={formData.shippingSameAsBilling} onChange={(e) => setFormData({ ...formData, shippingName: e.target.value })} placeholder="Shipping name" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Shipping Address {formData.shippingSameAsBilling ? '' : '*'}</Label>
+                        <Textarea value={formData.shippingSameAsBilling ? formData.billTo : formData.shipTo} disabled={formData.shippingSameAsBilling} onChange={(e) => setFormData({ ...formData, shipTo: e.target.value })} placeholder="Shipping address" className="min-h-[132px]" />
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="grid gap-2">
@@ -759,16 +812,14 @@ export default function PurchaseOrders() {
 
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="rounded-lg border p-4 text-sm space-y-2">
-                      <h3 className="font-semibold">Billing Details</h3>
-                      <div><span className="text-muted-foreground">Billing Name:</span><p className="font-medium">{viewPO.billingName || site?.billingName || site?.projectName || '-'}</p></div>
-                      <div><span className="text-muted-foreground">Billing Address:</span><p className="font-medium">{vendor?.address || '-'}</p></div>
+                      <h3 className="font-semibold">Billing To</h3>
+                      <p className="font-medium whitespace-pre-line">{[viewPO.billingName || site?.billingName || site?.projectName, viewPO.billTo || site?.billTo || site?.address].filter(Boolean).join('\n') || '-'}</p>
                       <div><span className="text-muted-foreground">GST:</span><p className="font-medium">{vendor?.gst || '-'}</p></div>
                     </div>
                     <div className="rounded-lg border p-4 text-sm space-y-2">
-                      <h3 className="font-semibold">Site Details</h3>
+                      <h3 className="font-semibold">Ship To</h3>
+                      <p className="font-medium whitespace-pre-line">{[viewPO.shippingName || viewPO.billingName || site?.billingName || site?.projectName, viewPO.shipTo || site?.shipTo || site?.address].filter(Boolean).join('\n') || '-'}</p>
                       <div><span className="text-muted-foreground">Site Name:</span><p className="font-medium">{site?.siteName || site?.name || '-'}</p></div>
-                      <div><span className="text-muted-foreground">Site Address:</span><p className="font-medium">{site?.address || '-'}</p></div>
-                      <div><span className="text-muted-foreground">Contact Person:</span><p className="font-medium">{site?.contactPerson || '-'}</p></div>
                     </div>
                   </div>
 

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { useStore, type Material } from "@/lib/store";
@@ -14,6 +15,15 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
+
+
+const getSiteAddressDefaults = (site?: any) => {
+  const billingName = site?.billingName || site?.projectName || site?.siteName || site?.name || "";
+  const billTo = site?.billTo || site?.address || "";
+  const shippingName = billingName;
+  const shipTo = site?.shipTo || site?.address || "";
+  return { billingName, billTo, shippingName, shipTo };
+};
 
 function MaterialAutocomplete({ materials, value, onSelect, onInputChange, inputRef, onFocus, onAddMaterial }: { materials: Material[]; value: string; onSelect: (materialId: string) => void; onInputChange?: () => void; inputRef?: (el: HTMLInputElement | null) => void; onFocus?: () => void; onAddMaterial: () => void; }) {
   const [searchText, setSearchText] = useState("");
@@ -153,7 +163,7 @@ export default function PurchaseOrderCreate() {
   const { vendors, materials, sites, addPO, vendorMaterialRates } = useStore();
   const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
-    siteId: "", vendorId: "", date: new Date().toISOString().split("T")[0], expectedDelivery: "", withGst: true, billingName: "", siteCode: "", billingCode: "", enableEstimatedCartage: false, estimatedCartage: "0", otherEstimatedCharges: "0", applyRoundOff: false,
+    siteId: "", vendorId: "", date: new Date().toISOString().split("T")[0], expectedDelivery: "", withGst: true, billingName: "", billTo: "", shippingName: "", shipTo: "", shippingSameAsBilling: false, siteCode: "", billingCode: "", enableEstimatedCartage: false, estimatedCartage: "0", otherEstimatedCharges: "0", applyRoundOff: false,
   });
   const [items, setItems] = useState([{ materialId: "", qty: "", rate: "", taxPercent: "18" }]);
   const [activeRow, setActiveRow] = useState<number | null>(null);
@@ -202,6 +212,14 @@ export default function PurchaseOrderCreate() {
       alert("Please select site/vendor and complete at least one material row.");
       return;
     }
+    if (!formData.billingName.trim() || !formData.billTo.trim()) {
+      alert("Billing name and billing address are required.");
+      return;
+    }
+    if (!formData.shippingSameAsBilling && (!formData.shippingName.trim() || !formData.shipTo.trim())) {
+      alert("Shipping name and shipping address are required when shipping differs from billing.");
+      return;
+    }
 
     const processedItems = meaningfulItems.map((item) => {
       const qty = Number(item.qty) || 0;
@@ -224,6 +242,9 @@ export default function PurchaseOrderCreate() {
       subTotal: round2(subtotal),
       gstAmount: round2(gst),
       billingName: formData.billingName,
+      billTo: formData.billTo,
+      shippingName: formData.shippingSameAsBilling ? formData.billingName : formData.shippingName,
+      shipTo: formData.shippingSameAsBilling ? formData.billTo : formData.shipTo,
       billingCode: formData.billingCode,
       siteCode: formData.siteCode,
     });
@@ -242,7 +263,7 @@ export default function PurchaseOrderCreate() {
                 <p className="text-xs text-muted-foreground">PO No: {(selectedSite?.billingCode || selectedSite?.poPrefix || 'BILL') + '/' + (selectedSite?.siteCode || 'SITE') + '/PO/XXX'}</p>
               </div>
               <div className="lg:col-span-2"><Label>Date</Label><Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="h-11" /></div>
-              <div className="lg:col-span-3"><Label>Site</Label><Select required value={formData.siteId} onValueChange={(val) => { const s = sites.find((x) => x.id.toString() === val); setFormData({ ...formData, siteId: val, billingName: s?.billingName || s?.projectName || s?.siteName || "", siteCode: s?.siteCode || "", billingCode: s?.billingCode || s?.poPrefix || "" }); }}><SelectTrigger className="h-11"><SelectValue placeholder="Select site" /></SelectTrigger><SelectContent>{sites.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.siteName || s.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="lg:col-span-3"><Label>Site</Label><Select required value={formData.siteId} onValueChange={(val) => { const s = sites.find((x) => x.id.toString() === val); const defaults = getSiteAddressDefaults(s); setFormData((prev) => ({ ...prev, siteId: val, billingName: defaults.billingName, billTo: defaults.billTo, shippingName: prev.shippingSameAsBilling ? defaults.billingName : defaults.shippingName, shipTo: prev.shippingSameAsBilling ? defaults.billTo : defaults.shipTo, siteCode: s?.siteCode || "", billingCode: s?.billingCode || s?.poPrefix || "" })); }}><SelectTrigger className="h-11"><SelectValue placeholder="Select site" /></SelectTrigger><SelectContent>{sites.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.siteName || s.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="lg:col-span-2"><Label>Vendor</Label><Select required value={formData.vendorId} onValueChange={(vendorId) => setFormData({ ...formData, vendorId })}><SelectTrigger className="h-11"><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent>{vendors.map((v) => <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="lg:col-span-2 flex gap-2"><Button type="button" variant="outline" className="w-full" onClick={() => setLocation('/pos')}>Cancel</Button><Button type="submit" className="w-full">Save</Button></div>
             </div>
@@ -250,14 +271,36 @@ export default function PurchaseOrderCreate() {
         </Card>
 
         <Card className="bg-muted/30">
-          <CardHeader><CardTitle className="text-base">Billing & Site Details</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div><Label>Billing Name</Label><Input readOnly value={formData.billingName} className="h-11" /></div>
-            <div><Label>Expected Delivery</Label><Input type="date" value={formData.expectedDelivery} onChange={(e) => setFormData({ ...formData, expectedDelivery: e.target.value })} className="h-11" /></div>
-            <div><Label>Include GST</Label><div className="flex h-11 items-center"><Switch checked={formData.withGst} onCheckedChange={(checked) => setFormData({ ...formData, withGst: checked })} /></div></div>
-            <div><Label>Freight in Subtotal</Label><div className="flex h-11 items-center"><Switch checked={formData.enableEstimatedCartage} onCheckedChange={(checked) => setFormData({ ...formData, enableEstimatedCartage: checked })} /></div></div>
-            {formData.enableEstimatedCartage && <div><Label>Freight</Label><Input type="number" step="0.01" value={formData.estimatedCartage} onChange={(e) => setFormData({ ...formData, estimatedCartage: e.target.value })} className="h-11" /></div>}
-            <div><Label>Other Charges</Label><Input type="number" step="0.01" value={formData.otherEstimatedCharges} onChange={(e) => setFormData({ ...formData, otherEstimatedCharges: e.target.value })} className="h-11" /></div>
+          <CardHeader><CardTitle className="text-base">Billing & Shipping Details</CardTitle></CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <Card className="border bg-background shadow-sm">
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Billing Details</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div><Label>Billing Name *</Label><Input value={formData.billingName} onChange={(e) => setFormData({ ...formData, billingName: e.target.value, ...(formData.shippingSameAsBilling ? { shippingName: e.target.value } : {}) })} className="h-11" /></div>
+                  <div><Label>Billing Address *</Label><Textarea value={formData.billTo} onChange={(e) => setFormData({ ...formData, billTo: e.target.value, ...(formData.shippingSameAsBilling ? { shipTo: e.target.value } : {}) })} className="min-h-[132px]" /></div>
+                </CardContent>
+              </Card>
+              <Card className="border bg-background shadow-sm">
+                <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Shipping Details</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <label className="flex items-center gap-3 rounded-md border p-3 text-sm font-medium">
+                    <input type="checkbox" checked={formData.shippingSameAsBilling} onChange={(e) => setFormData((prev) => ({ ...prev, shippingSameAsBilling: e.target.checked, shippingName: e.target.checked ? prev.billingName : prev.shippingName || prev.billingName, shipTo: e.target.checked ? prev.billTo : prev.shipTo }))} />
+                    Shipping same as Billing
+                  </label>
+                  <div><Label>Shipping Name {formData.shippingSameAsBilling ? '' : '*'}</Label><Input value={formData.shippingSameAsBilling ? formData.billingName : formData.shippingName} disabled={formData.shippingSameAsBilling} onChange={(e) => setFormData({ ...formData, shippingName: e.target.value })} className="h-11" /></div>
+                  <div><Label>Shipping Address {formData.shippingSameAsBilling ? '' : '*'}</Label><Textarea value={formData.shippingSameAsBilling ? formData.billTo : formData.shipTo} disabled={formData.shippingSameAsBilling} onChange={(e) => setFormData({ ...formData, shipTo: e.target.value })} className="min-h-[132px]" /></div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div><Label>Expected Delivery</Label><Input type="date" value={formData.expectedDelivery} onChange={(e) => setFormData({ ...formData, expectedDelivery: e.target.value })} className="h-11" /></div>
+              <div><Label>Include GST</Label><div className="flex h-11 items-center"><Switch checked={formData.withGst} onCheckedChange={(checked) => setFormData({ ...formData, withGst: checked })} /></div></div>
+              <div><Label>Freight in Subtotal</Label><div className="flex h-11 items-center"><Switch checked={formData.enableEstimatedCartage} onCheckedChange={(checked) => setFormData({ ...formData, enableEstimatedCartage: checked })} /></div></div>
+              <div><Label>Other Charges</Label><Input type="number" step="0.01" value={formData.otherEstimatedCharges} onChange={(e) => setFormData({ ...formData, otherEstimatedCharges: e.target.value })} className="h-11" /></div>
+              {formData.enableEstimatedCartage && <div><Label>Freight</Label><Input type="number" step="0.01" value={formData.estimatedCartage} onChange={(e) => setFormData({ ...formData, estimatedCartage: e.target.value })} className="h-11" /></div>}
+            </div>
           </CardContent>
         </Card>
 

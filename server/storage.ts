@@ -480,13 +480,29 @@ export class DatabaseStorage implements IStorage {
       financialYear: sequenceMeta.financialYear,
       siteCode: sequenceMeta.siteCode,
       billingCode: sequenceMeta.billingCode,
-      billingName: sequenceMeta.billingName,
+      billingName: payload.billingName || sequenceMeta.billingName,
+      billTo: payload.billTo || site.billTo || site.address || '',
+      shippingName: payload.shippingName || payload.billingName || sequenceMeta.billingName,
+      shipTo: payload.shipTo || site.shipTo || site.address || '',
     }).returning();
     return result;
   }
   async updatePurchaseOrder(id: number, po: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined> {
     const { displayId: _displayId, poNumber: _poNumber, runningNumber: _runningNumber, financialYear: _financialYear, prefix: _prefix, siteCode: _siteCode, billingCode: _billingCode, ...updatable } = (po as any);
-    const [result] = await db.update(purchaseOrders).set(updatable).where(eq(purchaseOrders.id, id)).returning();
+    const [existing] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id)).limit(1);
+    if (!existing) return undefined;
+
+    const resolvedSiteId = updatable.siteId || existing.siteId;
+    const site = resolvedSiteId ? await this.getSiteById(resolvedSiteId) : undefined;
+    const normalizedUpdate = {
+      ...updatable,
+      billingName: updatable.billingName ?? existing.billingName ?? site?.billingName ?? '',
+      billTo: updatable.billTo ?? existing.billTo ?? site?.billTo ?? site?.address ?? '',
+      shippingName: updatable.shippingName ?? existing.shippingName ?? existing.billingName ?? site?.billingName ?? '',
+      shipTo: updatable.shipTo ?? existing.shipTo ?? site?.shipTo ?? site?.address ?? '',
+    };
+
+    const [result] = await db.update(purchaseOrders).set(normalizedUpdate).where(eq(purchaseOrders.id, id)).returning();
     return result;
   }
   async deletePurchaseOrder(id: number): Promise<void> {
