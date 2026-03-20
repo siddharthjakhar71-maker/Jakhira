@@ -82,7 +82,12 @@ function NavLink({
   );
 }
 
-function NavSection({ title, icon: Icon, isActive, children }: NavSectionProps) {
+function NavSection({
+  title,
+  icon: Icon,
+  isActive,
+  children,
+}: NavSectionProps) {
   return (
     <div className="erp-sidebar-section">
       <div className={cn("erp-sidebar-section-trigger", isActive && "active")}>
@@ -100,7 +105,7 @@ function NavSection({ title, icon: Icon, isActive, children }: NavSectionProps) 
 export function Sidebar() {
   const [location] = useLocation();
   const { userProfile } = useStore();
-  const sidebarRole = userProfile.role.trim() || "Operations";
+  const sidebarRole = userProfile?.role?.trim() || "Operations";
 
   const purchaseActive = purchaseNavigation.some((i) => location === i.href);
   const vendorActive = vendorNavigation.some((i) => location === i.href);
@@ -109,76 +114,110 @@ export function Sidebar() {
   const analyticsActive = analyticsNavigation.some((i) => location === i.href);
 
   return (
-<<<<<<< HEAD
     <aside className="erp-sidebar">
       <div className="erp-sidebar-brand">
         <img
-          src="/favicon.png"
-          alt="Jakhira"
+          src="/Jakhira.png"
+          alt="Jakhira Logo"
           className="erp-sidebar-logo"
         />
       </div>
 
       <div className="erp-sidebar-user-chip">
-        <span className="erp-sidebar-user-avatar">{userProfile.name.charAt(0)}</span>
+        <span className="erp-sidebar-user-avatar">
+          {userProfile.name.charAt(0)}
+        </span>
         <div className="erp-sidebar-user-copy">
           <span className="erp-sidebar-user-name">{userProfile.name}</span>
           <span className="erp-sidebar-user-role">{sidebarRole}</span>
         </div>
       </div>
-=======
-    <div className="flex flex-col w-60 border-r border-sidebar-border bg-sidebar h-screen sticky top-0">
-
-<div className="h-16 flex items-center justify-center px-6 border-b border-sidebar-border">
-  <img
-    src="/Jakhira.png"
-    alt="Jakhira Logo"
-    className="h-50 w-full object-contain"
-  />
-</div>
->>>>>>> dc13ee8 (Add billing & shipping address handling to Purchase Orders)
 
       <nav className="erp-sidebar-nav">
         {dashboardNavigation.map((item) => (
-          <NavLink key={item.name} item={item} isActive={location === item.href} />
+          <NavLink
+            key={item.name}
+            item={item}
+            isActive={location === item.href}
+          />
         ))}
 
         {siteNavigation.map((item) => (
-          <NavLink key={item.name} item={item} isActive={location === item.href} />
+          <NavLink
+            key={item.name}
+            item={item}
+            isActive={location === item.href}
+          />
         ))}
 
-        <NavSection title="Purchase" icon={ShoppingCart} isActive={purchaseActive}>
+        <NavSection
+          title="Purchase"
+          icon={ShoppingCart}
+          isActive={purchaseActive}
+        >
           {purchaseNavigation.map((item) => (
-            <NavLink key={item.name} item={item} isActive={location === item.href} />
+            <NavLink
+              key={item.name}
+              item={item}
+              isActive={location === item.href}
+            />
           ))}
         </NavSection>
 
         <NavSection title="Vendors" icon={Users} isActive={vendorActive}>
           {vendorNavigation.map((item) => (
-            <NavLink key={item.name} item={item} isActive={location === item.href} />
+            <NavLink
+              key={item.name}
+              item={item}
+              isActive={location === item.href}
+            />
           ))}
         </NavSection>
 
-        <NavSection title="Inventory" icon={Package} isActive={inventoryActive}>
+        <NavSection
+          title="Inventory"
+          icon={Package}
+          isActive={inventoryActive}
+        >
           {inventoryNavigation.map((item) => (
-            <NavLink key={item.name} item={item} isActive={location === item.href} />
+            <NavLink
+              key={item.name}
+              item={item}
+              isActive={location === item.href}
+            />
           ))}
         </NavSection>
 
         <NavSection title="Finance" icon={BookOpen} isActive={financeActive}>
           {financeNavigation.map((item) => (
-            <NavLink key={item.name} item={item} isActive={location === item.href} />
+            <NavLink
+              key={item.name}
+              item={item}
+              isActive={location === item.href}
+            />
           ))}
         </NavSection>
 
-        <NavSection title="Analytics" icon={BarChart3} isActive={analyticsActive}>
+        <NavSection
+          title="Analytics"
+          icon={BarChart3}
+          isActive={analyticsActive}
+        >
           {analyticsNavigation.map((item) => (
-            <NavLink key={item.name} item={item} isActive={location === item.href} />
+            <NavLink
+              key={item.name}
+              item={item}
+              isActive={location === item.href}
+            />
           ))}
         </NavSection>
 
         {reportsNavigation.map((item) => (
-          <NavLink key={item.name} item={item} isActive={location === item.href} />
+          <NavLink
+            key={item.name}
+            item={item}
+            isActive={location === item.href}
+          />
         ))}
       </nav>
     </aside>
