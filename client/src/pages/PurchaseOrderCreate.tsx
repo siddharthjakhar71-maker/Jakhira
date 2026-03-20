@@ -5,8 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { useStore, type Material } from "@/lib/store";
 import { Plus, Trash2 } from "lucide-react";
@@ -16,14 +16,31 @@ import { useLocation } from "wouter";
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-
-const getSiteAddressDefaults = (site?: any) => {
-  const billingName = site?.billingName || site?.projectName || site?.siteName || site?.name || "";
-  const billTo = site?.billTo || site?.address || "";
-  const shippingName = billingName;
-  const shipTo = site?.shipTo || site?.address || "";
-  return { billingName, billTo, shippingName, shipTo };
+const initialFormData = {
+  siteId: "",
+  vendorId: "",
+  date: new Date().toISOString().split("T")[0],
+  expectedDelivery: "",
+  withGst: true,
+  billingName: "",
+  billingAddress: "",
+  shippingAddress: "",
+  sameAsBilling: false,
+  siteCode: "",
+  billingCode: "",
+  enableEstimatedCartage: false,
+  estimatedCartage: "0",
+  otherEstimatedCharges: "0",
+  applyRoundOff: false,
 };
+
+const initialItems = [{ materialId: "", qty: "", rate: "", taxPercent: "18" }];
+
+const getSiteAddressDefaults = (site?: any) => ({
+  billingName: site?.billingName || site?.projectName || site?.siteName || site?.name || "",
+  billingAddress: site?.billTo || site?.address || "",
+  shippingAddress: site?.shipTo || site?.address || "",
+});
 
 function MaterialAutocomplete({ materials, value, onSelect, onInputChange, inputRef, onFocus, onAddMaterial }: { materials: Material[]; value: string; onSelect: (materialId: string) => void; onInputChange?: () => void; inputRef?: (el: HTMLInputElement | null) => void; onFocus?: () => void; onAddMaterial: () => void; }) {
   const [searchText, setSearchText] = useState("");
@@ -141,7 +158,7 @@ function MaterialAutocomplete({ materials, value, onSelect, onInputChange, input
             <button
               type="button"
               key={material.id}
-              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted ${activeIndex === index ? 'bg-muted' : ''}`}
+              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted ${activeIndex === index ? "bg-muted" : ""}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setActiveIndex(index);
@@ -162,10 +179,8 @@ function MaterialAutocomplete({ materials, value, onSelect, onInputChange, input
 export default function PurchaseOrderCreate() {
   const { vendors, materials, sites, addPO, vendorMaterialRates } = useStore();
   const [, setLocation] = useLocation();
-  const [formData, setFormData] = useState({
-    siteId: "", vendorId: "", date: new Date().toISOString().split("T")[0], expectedDelivery: "", withGst: true, billingName: "", billTo: "", shippingName: "", shipTo: "", shippingSameAsBilling: false, siteCode: "", billingCode: "", enableEstimatedCartage: false, estimatedCartage: "0", otherEstimatedCharges: "0", applyRoundOff: false,
-  });
-  const [items, setItems] = useState([{ materialId: "", qty: "", rate: "", taxPercent: "18" }]);
+  const [formData, setFormData] = useState(initialFormData);
+  const [items, setItems] = useState(initialItems);
   const [activeRow, setActiveRow] = useState<number | null>(null);
   const materialRefs = useRef<Array<HTMLInputElement | null>>([]);
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -205,6 +220,14 @@ export default function PurchaseOrderCreate() {
     if (focus) setTimeout(() => materialRefs.current[index]?.focus(), 0);
   };
 
+  const resetForm = () => {
+    setFormData(initialFormData);
+    setItems(initialItems);
+    materialRefs.current = [];
+    qtyRefs.current = [];
+    setActiveRow(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const meaningfulItems = items.filter((i) => i.materialId || i.qty || i.rate);
@@ -212,12 +235,12 @@ export default function PurchaseOrderCreate() {
       alert("Please select site/vendor and complete at least one material row.");
       return;
     }
-    if (!formData.billingName.trim() || !formData.billTo.trim()) {
+    if (!formData.billingName.trim() || !formData.billingAddress.trim()) {
       alert("Billing name and billing address are required.");
       return;
     }
-    if (!formData.shippingSameAsBilling && (!formData.shippingName.trim() || !formData.shipTo.trim())) {
-      alert("Shipping name and shipping address are required when shipping differs from billing.");
+    if (!(formData.sameAsBilling ? formData.billingAddress : formData.shippingAddress).trim()) {
+      alert("Shipping address is required.");
       return;
     }
 
@@ -229,7 +252,7 @@ export default function PurchaseOrderCreate() {
       return { materialId: item.materialId, qty, rate, amount: round2(baseAmount + (baseAmount * tax / 100)), taxPercent: tax };
     });
 
-    addPO({
+    const submitData = {
       siteId: formData.siteId,
       vendorId: formData.vendorId,
       date: formData.date,
@@ -242,14 +265,18 @@ export default function PurchaseOrderCreate() {
       subTotal: round2(subtotal),
       gstAmount: round2(gst),
       billingName: formData.billingName,
-      billTo: formData.billTo,
-      shippingName: formData.shippingSameAsBilling ? formData.billingName : formData.shippingName,
-      shipTo: formData.shippingSameAsBilling ? formData.billTo : formData.shipTo,
+      billingAddress: formData.billingAddress,
+      shippingAddress: formData.sameAsBilling ? formData.billingAddress : formData.shippingAddress,
+      billTo: formData.billingAddress,
+      shippingName: formData.billingName,
+      shipTo: formData.sameAsBilling ? formData.billingAddress : formData.shippingAddress,
       billingCode: formData.billingCode,
       siteCode: formData.siteCode,
-    });
+    };
 
-    setLocation('/pos');
+    addPO(submitData);
+    resetForm();
+    setLocation("/pos");
   };
 
   return (
@@ -260,36 +287,69 @@ export default function PurchaseOrderCreate() {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-end">
               <div className="lg:col-span-3">
                 <h1 className="text-2xl font-bold">Create Purchase Order</h1>
-                <p className="text-xs text-muted-foreground">PO No: {(selectedSite?.billingCode || selectedSite?.poPrefix || 'BILL') + '/' + (selectedSite?.siteCode || 'SITE') + '/PO/XXX'}</p>
+                <p className="text-xs text-muted-foreground">PO No: {(selectedSite?.billingCode || selectedSite?.poPrefix || "BILL") + "/" + (selectedSite?.siteCode || "SITE") + "/PO/XXX"}</p>
               </div>
               <div className="lg:col-span-2"><Label>Date</Label><Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="h-11" /></div>
-              <div className="lg:col-span-3"><Label>Site</Label><Select required value={formData.siteId} onValueChange={(val) => { const s = sites.find((x) => x.id.toString() === val); const defaults = getSiteAddressDefaults(s); setFormData((prev) => ({ ...prev, siteId: val, billingName: defaults.billingName, billTo: defaults.billTo, shippingName: prev.shippingSameAsBilling ? defaults.billingName : defaults.shippingName, shipTo: prev.shippingSameAsBilling ? defaults.billTo : defaults.shipTo, siteCode: s?.siteCode || "", billingCode: s?.billingCode || s?.poPrefix || "" })); }}><SelectTrigger className="h-11"><SelectValue placeholder="Select site" /></SelectTrigger><SelectContent>{sites.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.siteName || s.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="lg:col-span-3"><Label>Site</Label><Select required value={formData.siteId} onValueChange={(val) => {
+                const site = sites.find((x) => x.id.toString() === val);
+                const defaults = getSiteAddressDefaults(site);
+                setFormData((prev) => ({
+                  ...prev,
+                  siteId: val,
+                  billingName: defaults.billingName,
+                  billingAddress: defaults.billingAddress,
+                  shippingAddress: prev.sameAsBilling ? defaults.billingAddress : defaults.shippingAddress,
+                  siteCode: site?.siteCode || "",
+                  billingCode: site?.billingCode || site?.poPrefix || "",
+                }));
+              }}><SelectTrigger className="h-11"><SelectValue placeholder="Select site" /></SelectTrigger><SelectContent>{sites.map((s) => <SelectItem key={s.id} value={s.id.toString()}>{s.siteName || s.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="lg:col-span-2"><Label>Vendor</Label><Select required value={formData.vendorId} onValueChange={(vendorId) => setFormData({ ...formData, vendorId })}><SelectTrigger className="h-11"><SelectValue placeholder="Select vendor" /></SelectTrigger><SelectContent>{vendors.map((v) => <SelectItem key={v.id} value={v.id.toString()}>{v.name}</SelectItem>)}</SelectContent></Select></div>
-              <div className="lg:col-span-2 flex gap-2"><Button type="button" variant="outline" className="w-full" onClick={() => setLocation('/pos')}>Cancel</Button><Button type="submit" className="w-full">Save</Button></div>
+              <div className="lg:col-span-2 flex gap-2"><Button type="button" variant="outline" className="w-full" onClick={() => setLocation("/pos")}>Cancel</Button><Button type="submit" className="w-full">Save</Button></div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-muted/30">
           <CardHeader><CardTitle className="text-base">Billing & Shipping Details</CardTitle></CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
+            <label className="inline-flex items-center gap-3 rounded-md border bg-background px-4 py-3 text-sm font-medium shadow-sm">
+              <input
+                type="checkbox"
+                checked={formData.sameAsBilling}
+                onChange={(e) => setFormData((prev) => ({
+                  ...prev,
+                  sameAsBilling: e.target.checked,
+                  shippingAddress: e.target.checked ? prev.billingAddress : prev.shippingAddress,
+                }))}
+              />
+              Same as Billing
+            </label>
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <Card className="border bg-background shadow-sm">
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Billing Details</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <div><Label>Billing Name *</Label><Input value={formData.billingName} onChange={(e) => setFormData({ ...formData, billingName: e.target.value, ...(formData.shippingSameAsBilling ? { shippingName: e.target.value } : {}) })} className="h-11" /></div>
-                  <div><Label>Billing Address *</Label><Textarea value={formData.billTo} onChange={(e) => setFormData({ ...formData, billTo: e.target.value, ...(formData.shippingSameAsBilling ? { shipTo: e.target.value } : {}) })} className="min-h-[132px]" /></div>
+                  <div>
+                    <Label>Billing Name</Label>
+                    <Input value={formData.billingName} readOnly className="h-11 bg-muted/40" />
+                  </div>
+                  <div>
+                    <Label>Billing Address</Label>
+                    <Textarea value={formData.billingAddress} readOnly className="min-h-[132px] resize-none bg-muted/40" />
+                  </div>
                 </CardContent>
               </Card>
               <Card className="border bg-background shadow-sm">
                 <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Shipping Details</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <label className="flex items-center gap-3 rounded-md border p-3 text-sm font-medium">
-                    <input type="checkbox" checked={formData.shippingSameAsBilling} onChange={(e) => setFormData((prev) => ({ ...prev, shippingSameAsBilling: e.target.checked, shippingName: e.target.checked ? prev.billingName : prev.shippingName || prev.billingName, shipTo: e.target.checked ? prev.billTo : prev.shipTo }))} />
-                    Shipping same as Billing
-                  </label>
-                  <div><Label>Shipping Name {formData.shippingSameAsBilling ? '' : '*'}</Label><Input value={formData.shippingSameAsBilling ? formData.billingName : formData.shippingName} disabled={formData.shippingSameAsBilling} onChange={(e) => setFormData({ ...formData, shippingName: e.target.value })} className="h-11" /></div>
-                  <div><Label>Shipping Address {formData.shippingSameAsBilling ? '' : '*'}</Label><Textarea value={formData.shippingSameAsBilling ? formData.billTo : formData.shipTo} disabled={formData.shippingSameAsBilling} onChange={(e) => setFormData({ ...formData, shipTo: e.target.value })} className="min-h-[132px]" /></div>
+                  <div>
+                    <Label>Shipping Address</Label>
+                    <Textarea
+                      value={formData.sameAsBilling ? formData.billingAddress : formData.shippingAddress}
+                      disabled={formData.sameAsBilling}
+                      onChange={(e) => setFormData({ ...formData, shippingAddress: e.target.value })}
+                      className="min-h-[188px]"
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -314,16 +374,16 @@ export default function PurchaseOrderCreate() {
                   {items.map((item, index) => {
                     const m = materialOptions.find((x) => x.id.toString() === item.materialId);
                     const amount = (Number(item.qty) || 0) * (Number(item.rate) || 0);
-                    return <tr key={index} className={activeRow === index ? 'bg-primary/5' : ''}>
+                    return <tr key={index} className={activeRow === index ? "bg-primary/5" : ""}>
                       <td className="p-2">{index + 1}</td>
                       <td className="p-2"><MaterialAutocomplete materials={materialOptions} value={item.materialId} onSelect={(val) => selectMaterial(index, val)} onInputChange={() => {
                         const next = [...items];
                         next[index] = { ...next[index], materialId: "", rate: "" };
                         setItems(next);
                       }} inputRef={(el) => materialRefs.current[index] = el} onFocus={() => setActiveRow(index)} onAddMaterial={() => { setPendingMaterialRow(index); setMaterialModalOpen(true); }} /></td>
-                      <td className="p-2">{m?.unit || '-'}</td>
-                      <td className="p-2"><Input ref={(el) => { qtyRefs.current[index] = el; }} type="number" step="0.01" value={item.qty} onFocus={() => setActiveRow(index)} onChange={(e) => setItems(items.map((row, i) => i === index ? { ...row, qty: e.target.value } : row))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItemRow(true); } }} className="h-11" /></td>
-                      <td className="p-2"><Input type="number" step="0.01" value={item.rate} onFocus={() => setActiveRow(index)} onChange={(e) => setItems(items.map((row, i) => i === index ? { ...row, rate: e.target.value } : row))} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItemRow(true); } }} className="h-11" /></td>
+                      <td className="p-2">{m?.unit || "-"}</td>
+                      <td className="p-2"><Input ref={(el) => { qtyRefs.current[index] = el; }} type="number" step="0.01" value={item.qty} onFocus={() => setActiveRow(index)} onChange={(e) => setItems(items.map((row, i) => i === index ? { ...row, qty: e.target.value } : row))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItemRow(true); } }} className="h-11" /></td>
+                      <td className="p-2"><Input type="number" step="0.01" value={item.rate} onFocus={() => setActiveRow(index)} onChange={(e) => setItems(items.map((row, i) => i === index ? { ...row, rate: e.target.value } : row))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItemRow(true); } }} className="h-11" /></td>
                       <td className="p-2 text-right font-medium">₹{amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                       <td className="p-2 text-right"><Button type="button" variant="ghost" size="icon" onClick={() => items.length > 1 && setItems(items.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4" /></Button></td>
                     </tr>;
@@ -342,7 +402,7 @@ export default function PurchaseOrderCreate() {
               <div className="flex justify-between"><span>GST</span><span>₹{gst.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between"><span>Freight</span><span>₹{getFreight().toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
               <div className="flex justify-between"><span>Other Charges</span><span>₹{getOther().toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
-              <div className="flex items-center justify-between border-t pt-2"><label className="flex items-center gap-2"><input type="checkbox" checked={formData.applyRoundOff} onChange={(e) => setFormData({ ...formData, applyRoundOff: e.target.checked })} />Apply Round Off</label>{formData.applyRoundOff && <span>Round Off: {roundOffAmount >= 0 ? '+' : ''}{roundOffAmount.toFixed(2)}</span>}</div>
+              <div className="flex items-center justify-between border-t pt-2"><label className="flex items-center gap-2"><input type="checkbox" checked={formData.applyRoundOff} onChange={(e) => setFormData({ ...formData, applyRoundOff: e.target.checked })} />Apply Round Off</label>{formData.applyRoundOff && <span>Round Off: {roundOffAmount >= 0 ? "+" : ""}{roundOffAmount.toFixed(2)}</span>}</div>
               <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Grand Total</span><span>₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
             </div>
           </CardContent>
@@ -357,14 +417,14 @@ export default function PurchaseOrderCreate() {
             <div className="grid grid-cols-2 gap-3"><div><Label>Category</Label><Input value={newMaterialForm.category} onChange={(e) => setNewMaterialForm({ ...newMaterialForm, category: e.target.value })} /></div><div><Label>Unit</Label><Input value={newMaterialForm.unit} onChange={(e) => setNewMaterialForm({ ...newMaterialForm, unit: e.target.value })} /></div></div>
             <div><Label>Default Rate</Label><Input type="number" value={newMaterialForm.defaultRate} onChange={(e) => setNewMaterialForm({ ...newMaterialForm, defaultRate: e.target.value })} /></div>
             <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setMaterialModalOpen(false)}>Cancel</Button><Button onClick={async () => {
-              const created = await api.createMaterial({ name: newMaterialForm.name.trim(), category: newMaterialForm.category || null, unit: newMaterialForm.unit || null, defaultRate: newMaterialForm.defaultRate === '' ? null : Number(newMaterialForm.defaultRate) || 0 });
+              const created = await api.createMaterial({ name: newMaterialForm.name.trim(), category: newMaterialForm.category || null, unit: newMaterialForm.unit || null, defaultRate: newMaterialForm.defaultRate === "" ? null : Number(newMaterialForm.defaultRate) || 0 });
               if (created?.id) {
                 setInlineMaterials((prev) => [...prev, created]);
                 if (pendingMaterialRow !== null) selectMaterial(pendingMaterialRow, created.id.toString());
               }
               setMaterialModalOpen(false);
               setPendingMaterialRow(null);
-              setNewMaterialForm({ name: '', category: '', unit: '', defaultRate: '' });
+              setNewMaterialForm({ name: "", category: "", unit: "", defaultRate: "" });
             }}>Save</Button></div>
           </div>
         </DialogContent>
