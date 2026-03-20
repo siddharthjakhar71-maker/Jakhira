@@ -159,7 +159,7 @@
 }
 
 :root {
-  --erp-sidebar-width: 260px;
+  --erp-sidebar-width: 270px;
   --erp-topbar-height: 64px;
 }
 
@@ -183,8 +183,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 0.5rem;
-  margin: 0 -1rem 1rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
   border-bottom: 1px solid rgb(255 255 255 / 0.08);
 }
 
@@ -198,10 +198,12 @@
 
 .erp-sidebar-brand-copy,
 .erp-sidebar-user-copy,
-.erp-sidebar-menu-text,
-.erp-sidebar-subtitle {
-  overflow: hidden;
+.erp-sidebar-menu-text {
+  flex: 1;
+  text-align: left;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .erp-sidebar-title {
@@ -227,6 +229,10 @@
   border-radius: 50px;
   background: rgb(255 255 255 / 0.06);
   border: 1px solid rgb(255 255 255 / 0.06);
+}
+.erp-sidebar-link:hover {
+  transform: translateX(3px);
+  transition: all 0.2s ease;
 }
 
 .erp-sidebar-user-avatar {
@@ -263,7 +269,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
   padding-right: 0.125rem;
 }
 
@@ -274,10 +280,10 @@
   align-items: center;
   justify-content: flex-start;
   gap: 0.75rem;
-  padding: 0.82rem 0.875rem;
-  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
   color: rgb(243 244 246 / 0.78);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 500;
   text-align: left;
 }
@@ -295,25 +301,22 @@
   box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.18);
 }
 
-.erp-sidebar-link-icon,
+.erp-sidebar-link-icon {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+}
+
 .erp-sidebar-section-label {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-shrink: 0;
-}
-
-.erp-sidebar-section-label {
   width: 100%;
 }
-
 .erp-sidebar-submenu {
-  margin-left: 1rem;
-  padding-left: 0.75rem;
-  border-left: 1px solid rgb(255 255 255 / 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  margin-left: 1.2rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid rgb(255 255 255 / 0.08);
 }
 
 .erp-app-shell {
@@ -326,8 +329,8 @@
   min-width: 0;
   margin-left: var(--erp-sidebar-width);
   width: calc(100% - var(--erp-sidebar-width));
+(Make user profile editable in General Settings and use dynamic sidebar role)
 }
-
 .erp-topbar-inner {
   min-height: var(--erp-topbar-height);
   display: flex;
@@ -356,6 +359,8 @@
   .erp-app-main {
     margin-left: min(var(--erp-sidebar-width), 100vw);
     width: calc(100% - min(var(--erp-sidebar-width), 100vw));
+    margin-left: 0;
+(Make user profile editable in General Settings and use dynamic sidebar role)
   }
 
   .erp-topbar-inner {
