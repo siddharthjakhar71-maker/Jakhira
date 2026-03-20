@@ -109,6 +109,7 @@ export function Sidebar() {
   const analyticsActive = analyticsNavigation.some((i) => location === i.href);
 
   return (
+<<<<<<< HEAD
     <aside className="erp-sidebar">
       <div className="erp-sidebar-brand">
         <img
@@ -125,6 +126,17 @@ export function Sidebar() {
           <span className="erp-sidebar-user-role">{sidebarRole}</span>
         </div>
       </div>
+=======
+    <div className="flex flex-col w-60 border-r border-sidebar-border bg-sidebar h-screen sticky top-0">
+
+<div className="h-16 flex items-center justify-center px-6 border-b border-sidebar-border">
+  <img
+    src="/Jakhira.png"
+    alt="Jakhira Logo"
+    className="h-50 w-full object-contain"
+  />
+</div>
+>>>>>>> dc13ee8 (Add billing & shipping address handling to Purchase Orders)
 
       <nav className="erp-sidebar-nav">
         {dashboardNavigation.map((item) => (
