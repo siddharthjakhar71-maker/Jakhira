@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
 
 :root {
   --bg: #ffffff;
@@ -329,7 +328,6 @@
   min-width: 0;
   margin-left: var(--erp-sidebar-width);
   width: calc(100% - var(--erp-sidebar-width));
-(Make user profile editable in General Settings and use dynamic sidebar role)
 }
 .erp-topbar-inner {
   min-height: var(--erp-topbar-height);
@@ -360,7 +358,6 @@
     margin-left: min(var(--erp-sidebar-width), 100vw);
     width: calc(100% - min(var(--erp-sidebar-width), 100vw));
     margin-left: 0;
-(Make user profile editable in General Settings and use dynamic sidebar role)
   }
 
   .erp-topbar-inner {

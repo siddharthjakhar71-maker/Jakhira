@@ -37,117 +37,144 @@ export function Header() {
   const totalNotifications = notifications.length;
 
   return (
-    <header className="erp-topbar border-b bg-background sticky top-0 z-30 shadow-sm/50">
-      <div className="erp-topbar-inner">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex w-full max-w-96 items-center rounded-md border border-transparent bg-muted/60 px-3 py-2 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20">
-            <Search className="mr-2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Global Search (POs, Vendors, Bills)..."
-              className="w-full border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              data-testid="input-search"
-            />
-          </div>
-        </div>
+  <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div className="flex items-center justify-between h-16 px-4 md:px-6 gap-4">
 
-        <div className="flex items-center gap-2 md:gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="hidden gap-2 shadow-sm sm:inline-flex" size="sm" data-testid="button-quick-action">
-                <Plus className="h-4 w-4" />
-                Quick Action
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mt-2 w-56">
-              <Link href="/pos#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 py-2">
-                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                  <span>Create Purchase Order</span>
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/grn#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 py-2">
-                  <FileCheck className="h-4 w-4 text-muted-foreground" />
-                  <span>Receive GRN</span>
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/bills#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 py-2">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span>Record Bill / Invoice</span>
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/payments#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 py-2">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <span>Log Payment</span>
-                </DropdownMenuItem>
-              </Link>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground" data-testid="button-notifications">
-                <Bell className="h-5 w-5" />
-                {totalNotifications > 0 && (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-background bg-destructive text-[10px] font-bold text-white">
-                    {totalNotifications}
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mt-2 w-64">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {totalNotifications === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">All caught up!</div>
-              ) : (
-                <div className="max-h-80 overflow-y-auto">
-                  {notifications.map((notification, index) => (
-                    <Link key={`${notification.label}-${index}`} href={notification.href}>
-                      <DropdownMenuItem className="flex w-full cursor-pointer justify-between py-2">
-                        <span className="text-sm">{notification.label}</span>
-                        <Badge variant={notification.variant}>{notification.count}</Badge>
-                      </DropdownMenuItem>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="ml-1 h-8 w-8 rounded-full bg-primary/10 hover:bg-primary/20 md:ml-2" data-testid="button-user-menu">
-                <UserCircle className="h-5 w-5 text-primary" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mt-2 w-56">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none" data-testid="text-username">{userProfile.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground">{userProfile.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <Link href="/settings">
-                <DropdownMenuItem className="cursor-pointer gap-2" data-testid="button-profile-settings">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-              </Link>
-              <DropdownMenuItem className="cursor-pointer gap-2 text-destructive" onClick={logout} data-testid="button-logout">
-                <LogOut className="h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* 🔍 Search */}
+      <div className="flex-1 max-w-md">
+        <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-4 py-2 border border-transparent focus-within:border-blue-500 focus-within:bg-white transition">
+          <Search className="h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search PO, vendor, bill..."
+            className="w-full bg-transparent outline-none text-sm placeholder:text-slate-400"
+          />
         </div>
       </div>
-    </header>
-  );
+
+      {/* ⚡ Actions */}
+      <div className="flex items-center gap-3">
+
+        {/* Quick Actions */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="hidden sm:flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4">
+              <Plus className="h-4 w-4" />
+              New
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-56 rounded-xl">
+            <Link href="/pos#new">
+              <DropdownMenuItem className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Purchase Order
+              </DropdownMenuItem>
+            </Link>
+
+            <Link href="/grn#new">
+              <DropdownMenuItem className="gap-2">
+                <FileCheck className="h-4 w-4" />
+                GRN
+              </DropdownMenuItem>
+            </Link>
+
+            <Link href="/bills#new">
+              <DropdownMenuItem className="gap-2">
+                <FileText className="h-4 w-4" />
+                Bill
+              </DropdownMenuItem>
+            </Link>
+
+            <Link href="/payments#new">
+              <DropdownMenuItem className="gap-2">
+                <CreditCard className="h-4 w-4" />
+                Payment
+              </DropdownMenuItem>
+            </Link>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* 🔔 Notifications */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative rounded-xl hover:bg-slate-100">
+              <Bell className="h-5 w-5 text-slate-600" />
+
+              {totalNotifications > 0 && (
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center">
+                  {totalNotifications}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-72 rounded-xl">
+            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+
+            {totalNotifications === 0 ? (
+              <div className="p-4 text-sm text-slate-500 text-center">
+                No notifications
+              </div>
+            ) : (
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.map((n, i) => (
+                  <Link key={i} href={n.href}>
+                    <DropdownMenuItem className="flex justify-between">
+                      <span>{n.label}</span>
+                      <Badge variant={n.variant}>{n.count}</Badge>
+                    </DropdownMenuItem>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* 👤 User */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 rounded-xl px-2 hover:bg-slate-100">
+
+              <div className="h-8 w-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                {userProfile.name.charAt(0)}
+              </div>
+
+              <span className="hidden md:block text-sm font-medium text-slate-700">
+                {userProfile.name}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent align="end" className="w-56 rounded-xl">
+            <DropdownMenuLabel>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{userProfile.name}</span>
+                <span className="text-xs text-slate-500">{userProfile.email}</span>
+              </div>
+            </DropdownMenuLabel>
+
+            <DropdownMenuSeparator />
+
+            <Link href="/settings">
+              <DropdownMenuItem className="gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </DropdownMenuItem>
+            </Link>
+
+            <DropdownMenuItem onClick={logout} className="gap-2 text-red-500">
+              <LogOut className="h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+      </div>
+    </div>
+  </header>
+);
 }

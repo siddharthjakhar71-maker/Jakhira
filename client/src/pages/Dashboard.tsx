@@ -99,11 +99,15 @@ export default function Dashboard() {
     <AppLayout>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Purchase Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Overview of procurement activities and spending.</p>
-          </div>
-          
+  <div className="mb-2">
+  <h1 className="text-2xl font-semibold text-slate-800">
+    Dashboard
+  </h1>
+  <p className="text-sm text-slate-500">
+    Overview of procurement and financial activity
+  </p>
+</div>
+          	
           <div className="flex items-center gap-3">
             <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
               <SelectTrigger className="w-[180px] bg-background" data-testid="select-site-filter">
@@ -122,46 +126,37 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Purchase</CardTitle>
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-purchase">{formatCurrency(totalPurchase)}</div>
-              <p className="text-xs text-muted-foreground mt-1 text-primary">YTD Total</p>
-            </CardContent>
-          </Card>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
-          <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Spend</CardTitle>
-              <div className="w-8 h-8 rounded-full bg-emerald-50 text-primary flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-monthly-spend">{formatCurrency(monthlySpend)}</div>
-              <p className="text-xs text-muted-foreground mt-1">Current month projection</p>
-            </CardContent>
-          </Card>
+  <div className="bg-gradient-to-r from-blue-600 to-blue-400 text-white p-5 rounded-2xl shadow-sm">
+    <p className="text-sm opacity-90">Total Purchase</p>
+    <h2 className="text-2xl font-bold">
+      ₹{totalPurchase.toLocaleString()}
+    </h2>
+  </div>
 
-          <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending POs</CardTitle>
-              <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
-                <FileClock className="w-4 h-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-pending-pos">{pendingPOs}</div>
-              <p className="text-xs text-muted-foreground mt-1 text-amber-600">Awaiting processing</p>
-            </CardContent>
-          </Card>
-        </div>
+  <div className="bg-gradient-to-r from-green-500 to-emerald-400 text-white p-5 rounded-2xl shadow-sm">
+    <p className="text-sm opacity-90">Monthly Spend</p>
+    <h2 className="text-2xl font-bold">
+      ₹{monthlySpend.toLocaleString()}
+    </h2>
+  </div>
+
+  <div className="bg-gradient-to-r from-yellow-500 to-orange-400 text-white p-5 rounded-2xl shadow-sm">
+    <p className="text-sm opacity-90">Pending POs</p>
+    <h2 className="text-2xl font-bold">
+      {pendingPOs}
+    </h2>
+  </div>
+
+  <div className="bg-gradient-to-r from-purple-500 to-pink-400 text-white p-5 rounded-2xl shadow-sm">
+    <p className="text-sm opacity-90">Vendors</p>
+    <h2 className="text-2xl font-bold">
+      {vendors.length}
+    </h2>
+  </div>
+
+</div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-none shadow-sm">
