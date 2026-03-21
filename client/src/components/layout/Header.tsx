@@ -48,7 +48,7 @@ export function Header() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search PO, vendor, material..."
-              className="h-11 w-full rounded-2xl border border-border/70 bg-white pl-11 pr-4 text-sm text-foreground shadow-sm transition-all duration-200 outline-none placeholder:text-muted-foreground/80 hover:border-border focus:border-primary/60 focus:ring-4 focus:ring-primary/10"
+              className="h-11 w-full rounded-2xl border border-border/70 bg-card pl-11 pr-4 text-sm text-foreground shadow-sm transition-all duration-200 outline-none placeholder:text-muted-foreground/80 hover:border-border focus:border-primary/60 focus:ring-4 focus:ring-primary/10"
               data-testid="input-search"
             />
           </div>
@@ -99,7 +99,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-11 w-11 rounded-2xl border border-border/70 bg-white text-muted-foreground shadow-sm transition-all duration-200 hover:border-border hover:bg-accent hover:text-foreground hover:shadow-md"
+                className="relative h-11 w-11 rounded-2xl border border-border/70 bg-card text-muted-foreground shadow-sm transition-all duration-200 hover:border-border hover:bg-accent hover:text-foreground hover:shadow-md"
                 data-testid="button-notifications"
               >
                 <Bell className="h-5 w-5" />
@@ -137,7 +137,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="group h-11 rounded-2xl border border-border/70 bg-white px-2.5 shadow-sm transition-all duration-200 hover:border-border hover:bg-accent hover:shadow-md"
+                className="group h-11 rounded-2xl border border-border/70 bg-card px-2.5 shadow-sm transition-all duration-200 hover:border-border hover:bg-accent hover:shadow-md"
                 data-testid="button-user-menu"
               >
                 <div className="flex items-center gap-3">
