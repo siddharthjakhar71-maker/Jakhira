@@ -19,6 +19,8 @@ export default function Login() {
     const success = await login(email, password);
     setLoading(false);
     if (success) {
+      localStorage.clear();
+      sessionStorage.clear();
       setLocation("/");
     } else {
       alert("Invalid credentials");
