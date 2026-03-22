@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useUserStore } from "@/stores/user-store";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -66,13 +67,21 @@ export default function Settings() {
     backupFrequency: "weekly",
     backupLocation: "/backups",
   });
-  const [localAvatarPreview, setLocalAvatarPreview] = useState<string | null>(null);
+  const storedAvatar = useUserStore((store) => store.avatar);
+  const setUserName = useUserStore((store) => store.setUserName);
+  const setAvatar = useUserStore((store) => store.setAvatar);
+  const removeAvatar = useUserStore((store) => store.removeAvatar);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setProfileData(userProfile);
-    setLocalAvatarPreview(null);
-  }, [userProfile]);
+    setProfileData((prev) => ({
+      ...prev,
+      ...userProfile,
+      name: userProfile.name || prev.name,
+      avatarUrl: storedAvatar || userProfile.avatarUrl || "",
+    }));
+  }, [storedAvatar, userProfile]);
 
   useEffect(() => {
     if (systemSettings) {
@@ -84,20 +93,12 @@ export default function Settings() {
     }
   }, [systemSettings]);
 
-  useEffect(() => {
-    return () => {
-      if (localAvatarPreview?.startsWith("blob:")) {
-        URL.revokeObjectURL(localAvatarPreview);
-      }
-    };
-  }, [localAvatarPreview]);
-
   const displayedAvatar = useMemo(
-    () => localAvatarPreview || profileData.avatarUrl || "",
-    [localAvatarPreview, profileData.avatarUrl],
+    () => storedAvatar || profileData.avatarUrl || "",
+    [profileData.avatarUrl, storedAvatar],
   );
 
-  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -114,31 +115,31 @@ export default function Settings() {
       return;
     }
 
-    if (localAvatarPreview?.startsWith("blob:")) {
-      URL.revokeObjectURL(localAvatarPreview);
+    try {
+      setIsUploadingAvatar(true);
+      const avatar = await setAvatar(file);
+      setProfileData((prev) => ({
+        ...prev,
+        avatarUrl: avatar,
+      }));
+      toast({
+        title: "Photo updated",
+        description: "Your avatar is now available across the dashboard.",
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Unable to process this image.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+      event.target.value = "";
     }
-
-    const objectUrl = URL.createObjectURL(file);
-    setLocalAvatarPreview(objectUrl);
-    setProfileData((prev) => ({
-      ...prev,
-      avatarUrl: objectUrl,
-    }));
-
-    toast({
-      title: "Photo ready",
-      description: "Preview updated. Save profile when you're ready.",
-    });
-
-    event.target.value = "";
   };
 
   const handleRemovePhoto = () => {
-    if (localAvatarPreview?.startsWith("blob:")) {
-      URL.revokeObjectURL(localAvatarPreview);
-    }
-
-    setLocalAvatarPreview(null);
+    removeAvatar();
     setProfileData((prev) => ({
       ...prev,
       avatarUrl: "",
@@ -151,11 +152,12 @@ export default function Settings() {
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUserName(profileData.name);
     await updateUserProfile({
       name: profileData.name,
       email: profileData.email,
       role: profileData.role,
-      avatarUrl: profileData.avatarUrl,
+      avatarUrl: displayedAvatar,
     });
     toast({
       title: "Profile updated",
@@ -261,8 +263,8 @@ export default function Settings() {
                             <div className="space-y-1">
                               <p className="text-sm font-semibold text-foreground">Profile Photo</p>
                               <p className="text-xs leading-5 text-muted-foreground">
-                                Upload a square image for the cleanest result. Backend storage can be
-                                connected later without changing this UI.
+                                Upload a square image for the cleanest result. Images are converted to
+                                Base64 and persisted locally for a consistent experience across pages.
                               </p>
                             </div>
                           </div>
@@ -280,16 +282,17 @@ export default function Settings() {
                               variant="outline"
                               size="sm"
                               onClick={() => fileInputRef.current?.click()}
+                              disabled={isUploadingAvatar}
                             >
                               <Upload className="mr-2 h-4 w-4" />
-                              Change Photo
+                              {isUploadingAvatar ? "Uploading..." : "Change Photo"}
                             </Button>
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={handleRemovePhoto}
-                              disabled={!displayedAvatar}
+                              disabled={!displayedAvatar || isUploadingAvatar}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Remove Photo
@@ -328,21 +331,6 @@ export default function Settings() {
                           onChange={(e) =>
                             setProfileData({ ...profileData, email: e.target.value })
                           }
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="profile-avatar-url">Avatar Image URL / Path</Label>
-                        <Input
-                          id="profile-avatar-url"
-                          value={profileData.avatarUrl || ""}
-                          onChange={(e) => {
-                            if (localAvatarPreview?.startsWith("blob:")) {
-                              URL.revokeObjectURL(localAvatarPreview);
-                              setLocalAvatarPreview(null);
-                            }
-                            setProfileData({ ...profileData, avatarUrl: e.target.value });
-                          }}
-                          placeholder="/uploads/profile-photo.jpg"
                         />
                       </div>
                       <div className="mt-auto pt-2">

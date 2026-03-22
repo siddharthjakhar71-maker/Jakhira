@@ -29,6 +29,7 @@ import { StoreProvider, useStore } from "@/lib/store";
 import { ThemeProvider } from "@/lib/theme";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useUserStore } from "@/stores/user-store";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,17 +40,36 @@ const queryClient = new QueryClient({
   },
 });
 
+function UserStoreInitializer() {
+  const { userProfile } = useStore();
+  const initializeAvatar = useUserStore((store) => store.initializeAvatar);
+  const initializeUser = useUserStore((store) => store.initializeUser);
+
+  useEffect(() => {
+    initializeAvatar();
+  }, [initializeAvatar]);
+
+  useEffect(() => {
+    initializeUser({
+      name: userProfile.name,
+      avatar: userProfile.avatarUrl,
+    });
+  }, [initializeUser, userProfile.avatarUrl, userProfile.name]);
+
+  return null;
+}
+
 function Router() {
   const { isAuthenticated } = useStore();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isAuthenticated && location !== '/login') {
-      setLocation('/login');
+    if (!isAuthenticated && location !== "/login") {
+      setLocation("/login");
     }
   }, [isAuthenticated, location, setLocation]);
 
-  if (!isAuthenticated && location !== '/login') {
+  if (!isAuthenticated && location !== "/login") {
     return null;
   }
 
@@ -103,6 +123,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <StoreProvider>
+          <UserStoreInitializer />
           <Toaster />
           <Router />
         </StoreProvider>
