@@ -15,25 +15,77 @@ let backendStarted = false;
 let backendStartupPromise = null;
 let isQuitting = false;
 
-function resolveServerEntry() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'index.cjs');
+function ensureFilePath(filePath, description) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error(`Missing ${description}: ${filePath}`);
   }
 
-  return path.join(app.getAppPath(), 'server', 'index.ts');
+  const stats = fs.statSync(filePath);
+  if (!stats.isFile()) {
+    throw new Error(`Expected ${description} to be a file, but received: ${filePath}`);
+  }
+
+  return filePath;
+}
+
+function resolveServerEntry() {
+  if (app.isPackaged) {
+    return ensureFilePath(
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'index.cjs'),
+      'packaged backend entry',
+    );
+  }
+
+  const developmentCandidates = [
+    path.join(app.getAppPath(), 'server', 'index.ts'),
+    path.join(app.getAppPath(), 'dist', 'index.cjs'),
+  ];
+
+  for (const candidate of developmentCandidates) {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Unable to find a development backend entry file. Checked: ${developmentCandidates.join(', ')}`);
 }
 
 function resolveStaticDir() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'public');
+  const staticDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'public')
+    : path.join(app.getAppPath(), 'dist', 'public');
+
+  if (!fs.existsSync(staticDir) || !fs.statSync(staticDir).isDirectory()) {
+    throw new Error(`Missing static assets directory: ${staticDir}`);
   }
 
-  return path.join(app.getAppPath(), 'dist', 'public');
+  return staticDir;
 }
 
 function resolveIconPath() {
   const iconPath = path.join(app.getAppPath(), 'client', 'public', 'logo.png');
   return fs.existsSync(iconPath) ? iconPath : undefined;
+}
+
+function resolveDevelopmentRunner(serverEntry) {
+  const appPath = app.getAppPath();
+  const isTypeScriptEntry = path.extname(serverEntry) === '.ts';
+
+  if (!isTypeScriptEntry) {
+    return {
+      command: process.env.npm_node_execpath || (process.platform === 'win32' ? 'node.exe' : 'node'),
+      args: [ensureFilePath(serverEntry, 'development backend entry')],
+    };
+  }
+
+  const tsxBinary = process.platform === 'win32'
+    ? path.join(appPath, 'node_modules', '.bin', 'tsx.cmd')
+    : path.join(appPath, 'node_modules', '.bin', 'tsx');
+
+  return {
+    command: ensureFilePath(tsxBinary, 'tsx executable'),
+    args: [ensureFilePath(serverEntry, 'development backend entry')],
+  };
 }
 
 function waitForPort(port, timeoutMs) {
@@ -106,29 +158,20 @@ function waitForHealthcheck(port, timeoutMs) {
   });
 }
 
-function ensurePackagedFilesExist(serverEntry, staticDir) {
-  if (!fs.existsSync(serverEntry)) {
-    throw new Error(`Missing packaged server build: ${serverEntry}`);
-  }
-
-  if (!fs.existsSync(staticDir)) {
-    throw new Error(`Missing packaged client build: ${staticDir}`);
-  }
-}
-
 function startDevelopmentBackend(serverEntry, env) {
-  const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const args = ['tsx', serverEntry];
-
-  if (!fs.existsSync(path.join(app.getAppPath(), 'node_modules'))) {
-    throw new Error('Dependencies are missing. Run npm install before starting Electron.');
-  }
+  const { command, args } = resolveDevelopmentRunner(serverEntry);
 
   backendProcess = spawn(command, args, {
     cwd: app.getAppPath(),
     env,
     stdio: 'inherit',
     windowsHide: true,
+    shell: false,
+  });
+
+  backendProcess.on('error', (error) => {
+    dialog.showErrorBox('Backend failed to start', `Could not start the ERP backend.\n\n${error.message}`);
+    app.quit();
   });
 
   backendProcess.on('exit', (code) => {
@@ -141,9 +184,9 @@ function startDevelopmentBackend(serverEntry, env) {
 }
 
 function startPackagedBackend(serverEntry) {
-  const loadServer = require(serverEntry);
+  const packagedEntry = ensureFilePath(serverEntry, 'packaged backend entry');
+  require(packagedEntry);
   backendStarted = true;
-  return loadServer;
 }
 
 async function ensureBackendStarted() {
@@ -168,7 +211,6 @@ async function ensureBackendStarted() {
     process.env.APP_STATIC_DIR = env.APP_STATIC_DIR;
 
     if (app.isPackaged) {
-      ensurePackagedFilesExist(serverEntry, staticDir);
       if (!backendStarted) {
         startPackagedBackend(serverEntry);
       }
@@ -243,7 +285,7 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
-  if (backendProcess) {
+  if (backendProcess && !backendProcess.killed) {
     backendProcess.kill();
   }
 });
