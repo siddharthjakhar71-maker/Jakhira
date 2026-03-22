@@ -3,14 +3,12 @@ import { Header } from "./Header";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="erp-app-shell bg-background text-foreground font-sans">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,transparent_30%),linear-gradient(180deg,hsl(var(--background))_0%,color-mix(in_srgb,var(--bg)_92%,#e2e8f0_8%)_100%)] text-foreground dark:bg-[radial-gradient(circle_at_top,#1e293b_0%,transparent_28%),linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
       <Sidebar />
-      <div className="erp-app-main flex min-h-screen flex-col w-full overflow-hidden">
+      <div className="min-h-screen lg:pl-[280px]">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6">
-          <div className="w-full">
-            {children}
-          </div>
+        <main className="px-4 pb-8 pt-6 md:px-6 xl:px-8">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
     </div>
