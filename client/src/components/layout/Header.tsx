@@ -26,6 +26,7 @@ import { Link, useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme";
 import { SIDEBAR_TOGGLE_EVENT } from "./Sidebar";
+import { UserAvatar } from "@/components/UserAvatar";
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   "/": {
@@ -134,6 +135,8 @@ export function Header() {
   };
 
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+  const userName = userProfile.name?.trim() || "User";
+  const avatarUrl = userProfile.avatarUrl?.trim() || "";
 
   return (
     <header className="erp-header-shell">
@@ -270,25 +273,29 @@ export function Header() {
                   variant="outline"
                   className="erp-header-profile-trigger"
                 >
-                  <span className="erp-header-avatar">
-                    {userProfile.name.charAt(0).toUpperCase()}
-                  </span>
+                  <UserAvatar
+                    name={userName}
+                    imageUrl={avatarUrl}
+                    className="h-8 w-8 rounded-xl"
+                    fallbackClassName="rounded-xl text-xs"
+                  />
                   <span className="hidden min-w-0 text-left md:block">
                     <span className="block truncate text-sm font-medium leading-none">
-                      {userProfile.name}
-                    </span>
-                    <span className="mt-1 block truncate text-xs text-muted-foreground">
-                      {userProfile.role}
+                      {userName}
                     </span>
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 rounded-2xl">
                 <DropdownMenuLabel>
-                  <div className="space-y-1">
-                    <div className="font-medium">{userProfile.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {userProfile.email}
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      name={userName}
+                      imageUrl={avatarUrl}
+                      className="h-10 w-10"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{userName}</div>
                     </div>
                   </div>
                 </DropdownMenuLabel>

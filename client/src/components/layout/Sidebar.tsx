@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { UserAvatar } from "@/components/UserAvatar";
 
 const SIDEBAR_TOGGLE_EVENT = "erp:toggle-sidebar";
 
@@ -204,8 +205,7 @@ export function Sidebar() {
   ]);
 
   const userName = userProfile?.name?.trim() || "User";
-  const role = userProfile?.role?.trim() || "Operations";
-  const email = userProfile?.email?.trim() || "";
+  const avatarUrl = userProfile?.avatarUrl?.trim() || "";
 
   const sections = useMemo(
     () => [
@@ -325,21 +325,20 @@ export function Sidebar() {
         </div>
 
         <div className="px-4 pt-4">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/20 text-lg font-semibold text-primary-foreground ring-1 ring-primary/20">
-                {userName.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">
+              <UserAvatar
+                name={userName}
+                imageUrl={avatarUrl}
+                className="h-11 w-11 rounded-2xl"
+                fallbackClassName="rounded-2xl bg-primary/20 text-base text-primary-foreground"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold tracking-tight text-white">
                   {userName}
                 </p>
-                <p className="truncate text-xs text-slate-400">{role}</p>
               </div>
             </div>
-            {email ? (
-              <p className="mt-3 truncate text-xs text-slate-500">{email}</p>
-            ) : null}
           </div>
         </div>
 

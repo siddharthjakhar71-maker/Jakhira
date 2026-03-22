@@ -25,7 +25,7 @@ export type POTemplate = { id: number; name: string; isDefault: string; config: 
 export type LayoutBlock = { id: string; label: string; row: number; col: number; colSpan: number; visible: boolean };
 export type TemplateStyleConfig = { blocks: LayoutBlock[]; linkedTemplateId?: number };
 export type TemplateStyle = { id: number; name: string; isDefault: string; config: TemplateStyleConfig };
-export type UserProfile = { id: number; name: string; email: string; phone: string; role: string; company: string; password?: string };
+export type UserProfile = { id: number; name: string; email: string; phone: string; role: string; company: string; avatarUrl?: string; password?: string };
 export type SystemSettings = { id: number; backupEnabled: number; backupFrequency: string; backupLocation: string; updatedAt: string };
 
 export type MaterialIssueItem = { materialId: string; qty: number };
@@ -68,6 +68,7 @@ const defaultProfile: UserProfile = {
   phone: '+91 88004 47427',
   role: 'Admin',
   company: 'JAKHIRA',
+  avatarUrl: '',
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {

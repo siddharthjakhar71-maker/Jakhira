@@ -113,6 +113,7 @@ export async function registerRoutes(
         phone: profile.phone,
         role: profile.role,
         company: "JAKHIRA",
+        avatarUrl: profile.avatarUrl,
       },
     });
   });
@@ -131,6 +132,7 @@ export async function registerRoutes(
         phone: profile.phone,
         role: profile.role,
         company: profile.company,
+        avatarUrl: profile.avatarUrl,
       },
     });
   });
@@ -147,6 +149,7 @@ export async function registerRoutes(
     if (typeof req.body?.phone === "string") payload.phone = req.body.phone;
     if (typeof req.body?.role === "string") payload.role = req.body.role;
     if (typeof req.body?.company === "string") payload.company = req.body.company;
+    if (typeof req.body?.avatarUrl === "string") payload.avatarUrl = req.body.avatarUrl;
 
     const updated = await storage.updateUserProfile(currentUser.id, payload);
     if (!updated) {
@@ -161,6 +164,7 @@ export async function registerRoutes(
         phone: updated.phone,
         role: updated.role,
         company: updated.company,
+        avatarUrl: updated.avatarUrl,
       },
     });
   });
