@@ -3,6 +3,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 const net = require('node:net');
+const http = require('node:http');
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT || 5000);
@@ -10,6 +11,8 @@ const STARTUP_TIMEOUT_MS = 45_000;
 
 let mainWindow = null;
 let backendProcess = null;
+let backendStarted = false;
+let backendStartupPromise = null;
 let isQuitting = false;
 
 function resolveServerEntry() {
@@ -26,6 +29,11 @@ function resolveStaticDir() {
   }
 
   return path.join(app.getAppPath(), 'dist', 'public');
+}
+
+function resolveIconPath() {
+  const iconPath = path.join(app.getAppPath(), 'client', 'public', 'logo.png');
+  return fs.existsSync(iconPath) ? iconPath : undefined;
 }
 
 function waitForPort(port, timeoutMs) {
@@ -52,24 +60,67 @@ function waitForPort(port, timeoutMs) {
   });
 }
 
-function startBackend() {
-  if (backendProcess) {
-    return backendProcess;
+function waitForHealthcheck(port, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+
+    const attempt = () => {
+      const request = http.get(
+        {
+          host: HOST,
+          port,
+          path: '/api/health',
+          timeout: 2_000,
+        },
+        (response) => {
+          response.resume();
+          if (response.statusCode === 200) {
+            resolve();
+            return;
+          }
+
+          if (Date.now() - startedAt >= timeoutMs) {
+            reject(new Error(`Backend health check failed with status ${response.statusCode ?? 'unknown'}.`));
+            return;
+          }
+
+          setTimeout(attempt, 250);
+        },
+      );
+
+      request.on('error', () => {
+        if (Date.now() - startedAt >= timeoutMs) {
+          reject(new Error(`Backend did not become healthy on port ${port} within ${timeoutMs}ms.`));
+          return;
+        }
+
+        setTimeout(attempt, 250);
+      });
+
+      request.on('timeout', () => {
+        request.destroy();
+      });
+    };
+
+    attempt();
+  });
+}
+
+function ensurePackagedFilesExist(serverEntry, staticDir) {
+  if (!fs.existsSync(serverEntry)) {
+    throw new Error(`Missing packaged server build: ${serverEntry}`);
   }
 
-  const serverEntry = resolveServerEntry();
-  const command = app.isPackaged ? process.execPath : process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const args = app.isPackaged ? [serverEntry] : ['tsx', serverEntry];
-  const env = {
-    ...process.env,
-    PORT: String(PORT),
-    NODE_ENV: app.isPackaged ? 'production' : 'development',
-    APP_DATA_DIR: path.join(app.getPath('userData'), 'runtime'),
-    APP_STATIC_DIR: resolveStaticDir(),
-    ELECTRON_RUN_AS_NODE: '1',
-  };
+  if (!fs.existsSync(staticDir)) {
+    throw new Error(`Missing packaged client build: ${staticDir}`);
+  }
+}
 
-  if (!app.isPackaged && !fs.existsSync(path.join(app.getAppPath(), 'node_modules'))) {
+function startDevelopmentBackend(serverEntry, env) {
+  const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  const args = ['tsx', serverEntry];
+
+  if (!fs.existsSync(path.join(app.getAppPath(), 'node_modules'))) {
     throw new Error('Dependencies are missing. Run npm install before starting Electron.');
   }
 
@@ -87,13 +138,58 @@ function startBackend() {
       app.quit();
     }
   });
+}
 
-  return backendProcess;
+function startPackagedBackend(serverEntry) {
+  const loadServer = require(serverEntry);
+  backendStarted = true;
+  return loadServer;
+}
+
+async function ensureBackendStarted() {
+  if (backendStartupPromise) {
+    return backendStartupPromise;
+  }
+
+  backendStartupPromise = (async () => {
+    const serverEntry = resolveServerEntry();
+    const staticDir = resolveStaticDir();
+    const env = {
+      ...process.env,
+      PORT: String(PORT),
+      NODE_ENV: app.isPackaged ? 'production' : 'development',
+      APP_DATA_DIR: path.join(app.getPath('userData'), 'runtime'),
+      APP_STATIC_DIR: staticDir,
+    };
+
+    process.env.PORT = env.PORT;
+    process.env.NODE_ENV = env.NODE_ENV;
+    process.env.APP_DATA_DIR = env.APP_DATA_DIR;
+    process.env.APP_STATIC_DIR = env.APP_STATIC_DIR;
+
+    if (app.isPackaged) {
+      ensurePackagedFilesExist(serverEntry, staticDir);
+      if (!backendStarted) {
+        startPackagedBackend(serverEntry);
+      }
+    } else if (!backendProcess) {
+      startDevelopmentBackend(serverEntry, env);
+    }
+
+    await waitForPort(PORT, STARTUP_TIMEOUT_MS);
+    await waitForHealthcheck(PORT, STARTUP_TIMEOUT_MS);
+  })();
+
+  try {
+    await backendStartupPromise;
+  } catch (error) {
+    backendStartupPromise = null;
+    throw error;
+  }
 }
 
 async function createMainWindow() {
-  startBackend();
-  await waitForPort(PORT, STARTUP_TIMEOUT_MS);
+  await ensureBackendStarted();
 
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -102,7 +198,7 @@ async function createMainWindow() {
     minHeight: 760,
     show: false,
     autoHideMenuBar: true,
-    icon: path.join(app.getAppPath(), 'client', 'public', 'logo.png'),
+    icon: resolveIconPath(),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
