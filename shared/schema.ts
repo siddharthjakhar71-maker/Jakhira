@@ -241,6 +241,7 @@ export const userProfile = sqliteTable("user_profile", {
   phone: text("phone").notNull().default(""),
   role: text("role").notNull().default(""),
   company: text("company").notNull().default(""),
+  avatarUrl: text("avatar_url").notNull().default(""),
   password: text("password").notNull().default("8800447427"),
 });
 

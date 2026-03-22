@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS vendors (
     phone TEXT NOT NULL DEFAULT '',
     role TEXT NOT NULL DEFAULT '',
     company TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT NOT NULL DEFAULT '',
     password TEXT NOT NULL DEFAULT '8800447427'
   );
   CREATE TABLE IF NOT EXISTS template_styles (
@@ -279,6 +280,11 @@ if (!siteColumns.some((column) => column.name === "contact_person")) {
 }
 if (!siteColumns.some((column) => column.name === "phone")) {
   sqlite.exec("ALTER TABLE sites ADD COLUMN phone TEXT NOT NULL DEFAULT '';");
+}
+
+const userProfileColumns = sqlite.prepare("PRAGMA table_info(user_profile)").all() as Array<{ name: string }> ;
+if (!userProfileColumns.some((column) => column.name === "avatar_url")) {
+  sqlite.exec("ALTER TABLE user_profile ADD COLUMN avatar_url TEXT NOT NULL DEFAULT '';");
 }
 if (!siteColumns.some((column) => column.name === "created_at")) {
   sqlite.exec("ALTER TABLE sites ADD COLUMN created_at TEXT NOT NULL DEFAULT '';");

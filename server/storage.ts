@@ -1016,6 +1016,7 @@ export class DatabaseStorage implements IStorage {
       phone: profile.phone ?? "",
       role: profile.role ?? "Admin",
       company: profile.company ?? "JAKHIRA",
+      avatarUrl: profile.avatarUrl ?? "",
       password: profile.password ?? "admin123",
     };
     const [result] = await db.insert(userProfile).values(payload).returning();
@@ -1036,6 +1037,7 @@ export class DatabaseStorage implements IStorage {
       phone: "",
       role: "Admin",
       company: "JAKHIRA",
+      avatarUrl: "",
       password: "admin123",
     });
   }
