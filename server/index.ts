@@ -24,6 +24,10 @@ app.use(
 
 app.use(express.urlencoded({ extended: true, limit: `${Math.ceil(MAX_PROFILE_IMAGE_BYTES * 1.5)}b` }));
 
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",

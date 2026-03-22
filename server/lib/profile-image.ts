@@ -1,6 +1,6 @@
 export const MAX_PROFILE_IMAGE_BYTES = 2 * 1024 * 1024;
 
-const BASE64_DATA_URL_PATTERN = /^data:(?<mime>[\w/+.-]+);base64,(?<payload>[A-Za-z0-9+/=\s]+)$/;
+const BASE64_DATA_URL_PATTERN = /^data:([\w/+.-]+);base64,([A-Za-z0-9+/=\s]+)$/;
 
 export type ProfileImageValidationResult = {
   byteLength: number;
@@ -13,16 +13,19 @@ export function isBase64DataUrl(value: string): boolean {
 
 export function getBase64DataUrlInfo(value: string): ProfileImageValidationResult | null {
   const match = BASE64_DATA_URL_PATTERN.exec(value.trim());
-  if (!match?.groups?.payload || !match.groups.mime) {
+  const mimeType = match?.[1];
+  const payload = match?.[2];
+
+  if (!mimeType || !payload) {
     return null;
   }
 
-  const sanitizedPayload = match.groups.payload.replace(/\s+/g, "");
+  const sanitizedPayload = payload.replace(/\s+/g, "");
   const fileBuffer = Buffer.from(sanitizedPayload, "base64");
 
   return {
     byteLength: fileBuffer.byteLength,
-    mimeType: match.groups.mime,
+    mimeType,
   };
 }
 
