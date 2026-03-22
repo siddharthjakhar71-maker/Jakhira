@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { presetPrimaryColors, useTheme, type AppTheme } from "@/lib/theme";
 import { api } from "@/lib/api";
+import { MAX_PROFILE_IMAGE_BYTES, formatFileSize } from "@/lib/profile/profile-image";
 import POTemplateDesigner from "./POTemplateDesigner";
 import TemplateStyleDesigner from "./TemplateStyleDesigner";
 
@@ -102,16 +103,6 @@ export default function Settings() {
     const file = event.target.files?.[0];
 
     if (!file) {
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Unsupported file",
-        description: "Please choose an image file from your device.",
-        variant: "destructive",
-      });
-      event.target.value = "";
       return;
     }
 
@@ -265,6 +256,7 @@ export default function Settings() {
                               <p className="text-xs leading-5 text-muted-foreground">
                                 Upload a square image for the cleanest result. Images are converted to
                                 Base64 and persisted locally for a consistent experience across pages.
+                                Keep files under {formatFileSize(MAX_PROFILE_IMAGE_BYTES)}.
                               </p>
                             </div>
                           </div>

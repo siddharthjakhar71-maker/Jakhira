@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { MAX_PROFILE_IMAGE_BYTES } from "./lib/profile-image";
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,13 +15,14 @@ declare module "http" {
 
 app.use(
   express.json({
+    limit: `${Math.ceil(MAX_PROFILE_IMAGE_BYTES * 1.5)}b`,
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: true, limit: `${Math.ceil(MAX_PROFILE_IMAGE_BYTES * 1.5)}b` }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -70,6 +72,17 @@ app.use((req, res, next) => {
 
     if (res.headersSent) {
       return next(err);
+    }
+
+    if (err?.type === "entity.too.large") {
+      return res.status(413).json({
+        message: `Request payload is too large. Keep profile images under ${Math.round(MAX_PROFILE_IMAGE_BYTES / (1024 * 1024))}MB or switch to multipart/form-data uploads.`,
+        profileImage: {
+          maxBytes: MAX_PROFILE_IMAGE_BYTES,
+          maxMegabytes: MAX_PROFILE_IMAGE_BYTES / (1024 * 1024),
+        },
+        recommendedUploadMode: "multipart/form-data",
+      });
     }
 
     return res.status(status).json({ message });
