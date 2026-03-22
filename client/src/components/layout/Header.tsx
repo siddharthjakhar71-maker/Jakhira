@@ -5,7 +5,6 @@ import {
   MoonStar,
   Plus,
   Search,
-  Settings,
   ShoppingCart,
   SunMedium,
   Truck,
@@ -29,23 +28,58 @@ import { useTheme } from "@/lib/theme";
 import { SIDEBAR_TOGGLE_EVENT } from "./Sidebar";
 
 const pageTitles: Record<string, { title: string; description: string }> = {
-  "/": { title: "Dashboard", description: "Monitor procurement, billing, stock, and approvals from one workspace." },
-  "/pos": { title: "Purchase Orders", description: "Create, track, and export purchase orders without affecting the existing workflows." },
-  "/purchase-orders/create": { title: "Create Purchase Order", description: "Capture vendor, site, and line item details in the ERP layout." },
-  "/grn": { title: "Goods Receipt Notes", description: "Review receipts and keep procurement status aligned." },
-  "/bills": { title: "Bills", description: "Manage payable documents and billing progress." },
-  "/payments": { title: "Payments", description: "Track outgoing payments and settlement status." },
+  "/": {
+    title: "Dashboard",
+    description:
+      "Monitor procurement, billing, stock, and approvals from one workspace.",
+  },
+  "/pos": {
+    title: "Purchase Orders",
+    description:
+      "Create, track, and export purchase orders without affecting the existing workflows.",
+  },
+  "/purchase-orders/create": {
+    title: "Create Purchase Order",
+    description:
+      "Capture vendor, site, and line item details in the ERP layout.",
+  },
+  "/grn": {
+    title: "Goods Receipt Notes",
+    description: "Review receipts and keep procurement status aligned.",
+  },
+  "/bills": {
+    title: "Bills",
+    description: "Manage payable documents and billing progress.",
+  },
+  "/payments": {
+    title: "Payments",
+    description: "Track outgoing payments and settlement status.",
+  },
 };
 
 const quickCreateItems = [
-  { href: "/purchase-orders/create", label: "Purchase Order", icon: ShoppingCart },
+  {
+    href: "/purchase-orders/create",
+    label: "Purchase Order",
+    icon: ShoppingCart,
+  },
   { href: "/grn/create", label: "GRN", icon: Truck },
   { href: "/bills/create", label: "Bill", icon: FileText },
   { href: "/payments/create", label: "Payment", icon: Wallet },
 ];
 
 export function Header() {
-  const { searchQuery, setSearchQuery, userProfile, bills, pos, grns, siteStocks, materials, logout } = useStore();
+  const {
+    searchQuery,
+    setSearchQuery,
+    userProfile,
+    bills,
+    pos,
+    grns,
+    siteStocks,
+    materials,
+    logout,
+  } = useStore();
   const { resolvedTheme, setTheme } = useTheme();
   const [location] = useLocation();
 
@@ -61,15 +95,42 @@ export function Header() {
     .slice(0, 5);
 
   const notifications = [
-    ...pendingPOs.slice(0, 5).map((po) => ({ label: `PO ${po.displayId} pending receipt`, href: `/grn?open=${po.displayId}`, count: 1, variant: "secondary" as const })),
-    ...unbilledGRNs.slice(0, 5).map((grn) => ({ label: `GRN ${grn.displayId} pending bill`, href: `/bills?open=${grn.displayId}`, count: 1, variant: "secondary" as const })),
-    ...unpaidBills.slice(0, 5).map((bill) => ({ label: `Bill ${bill.displayId} unpaid`, href: `/payments?open=${bill.displayId}`, count: 1, variant: "destructive" as const })),
-    ...lowStockAlerts.map(({ material, balance }) => ({ label: `Low stock: ${material?.name || "Material"} (${balance})`, href: "/stock", count: balance, variant: "destructive" as const })),
+    ...pendingPOs
+      .slice(0, 5)
+      .map((po) => ({
+        label: `PO ${po.displayId} pending receipt`,
+        href: `/grn?open=${po.displayId}`,
+        count: 1,
+        variant: "secondary" as const,
+      })),
+    ...unbilledGRNs
+      .slice(0, 5)
+      .map((grn) => ({
+        label: `GRN ${grn.displayId} pending bill`,
+        href: `/bills?open=${grn.displayId}`,
+        count: 1,
+        variant: "secondary" as const,
+      })),
+    ...unpaidBills
+      .slice(0, 5)
+      .map((bill) => ({
+        label: `Bill ${bill.displayId} unpaid`,
+        href: `/payments?open=${bill.displayId}`,
+        count: 1,
+        variant: "destructive" as const,
+      })),
+    ...lowStockAlerts.map(({ material, balance }) => ({
+      label: `Low stock: ${material?.name || "Material"} (${balance})`,
+      href: "/stock",
+      count: balance,
+      variant: "destructive" as const,
+    })),
   ];
 
   const pageMeta = pageTitles[location] ?? {
     title: "Jakhira ERP",
-    description: "Operate procurement and inventory workflows inside a modern ERP shell.",
+    description:
+      "Operate procurement and inventory workflows inside a modern ERP shell.",
   };
 
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
@@ -83,7 +144,9 @@ export function Header() {
               variant="outline"
               size="icon"
               className="erp-header-icon-button mt-1 shrink-0 lg:hidden"
-              onClick={() => window.dispatchEvent(new Event(SIDEBAR_TOGGLE_EVENT))}
+              onClick={() =>
+                window.dispatchEvent(new Event(SIDEBAR_TOGGLE_EVENT))
+              }
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -95,22 +158,17 @@ export function Header() {
                 <span className="erp-header-caption">Live operations</span>
               </div>
               <div className="space-y-1">
-                <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">{pageMeta.title}</h1>
-                <p className="max-w-2xl text-sm text-muted-foreground">{pageMeta.description}</p>
+                <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                  {pageMeta.title}
+                </h1>
+                <p className="max-w-2xl text-sm text-muted-foreground">
+                  {pageMeta.description}
+                </p>
               </div>
             </div>
           </div>
 
           <div className="hidden items-center gap-2 lg:flex lg:self-start">
-            <Link href="/settings">
-              <a>
-                <Button type="button" variant="outline" className="erp-header-button-secondary">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Button>
-              </a>
-            </Link>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="erp-header-button-primary">
@@ -157,12 +215,19 @@ export function Header() {
               aria-label={`Switch to ${nextTheme} theme`}
               title={`Switch to ${nextTheme} theme`}
             >
-              {resolvedTheme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
+              {resolvedTheme === "dark" ? (
+                <SunMedium className="h-4 w-4" />
+              ) : (
+                <MoonStar className="h-4 w-4" />
+              )}
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="erp-header-button-secondary relative">
+                <Button
+                  variant="outline"
+                  className="erp-header-button-secondary relative"
+                >
                   <Bell className="h-4 w-4" />
                   Alerts
                   {notifications.length > 0 ? (
@@ -176,13 +241,22 @@ export function Header() {
                 <DropdownMenuLabel>Operational alerts</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {notifications.length === 0 ? (
-                  <div className="p-4 text-sm text-muted-foreground">No outstanding alerts.</div>
+                  <div className="p-4 text-sm text-muted-foreground">
+                    No outstanding alerts.
+                  </div>
                 ) : (
                   notifications.map((notification, index) => (
-                    <Link key={`${notification.href}-${index}`} href={notification.href}>
+                    <Link
+                      key={`${notification.href}-${index}`}
+                      href={notification.href}
+                    >
                       <DropdownMenuItem className="flex items-center justify-between gap-3 py-3">
-                        <span className="line-clamp-2 flex-1 text-sm">{notification.label}</span>
-                        <Badge variant={notification.variant}>{notification.count}</Badge>
+                        <span className="line-clamp-2 flex-1 text-sm">
+                          {notification.label}
+                        </span>
+                        <Badge variant={notification.variant}>
+                          {notification.count}
+                        </Badge>
                       </DropdownMenuItem>
                     </Link>
                   ))
@@ -192,11 +266,20 @@ export function Header() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="erp-header-profile-trigger">
-                  <span className="erp-header-avatar">{userProfile.name.charAt(0).toUpperCase()}</span>
+                <Button
+                  variant="outline"
+                  className="erp-header-profile-trigger"
+                >
+                  <span className="erp-header-avatar">
+                    {userProfile.name.charAt(0).toUpperCase()}
+                  </span>
                   <span className="hidden min-w-0 text-left md:block">
-                    <span className="block truncate text-sm font-medium leading-none">{userProfile.name}</span>
-                    <span className="mt-1 block truncate text-xs text-muted-foreground">{userProfile.role}</span>
+                    <span className="block truncate text-sm font-medium leading-none">
+                      {userProfile.name}
+                    </span>
+                    <span className="mt-1 block truncate text-xs text-muted-foreground">
+                      {userProfile.role}
+                    </span>
                   </span>
                 </Button>
               </DropdownMenuTrigger>
@@ -204,17 +287,21 @@ export function Header() {
                 <DropdownMenuLabel>
                   <div className="space-y-1">
                     <div className="font-medium">{userProfile.name}</div>
-                    <div className="text-xs text-muted-foreground">{userProfile.email}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {userProfile.email}
+                    </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <Link href="/settings">
                   <DropdownMenuItem className="gap-2">
-                    <Settings className="h-4 w-4" />
                     Settings
                   </DropdownMenuItem>
                 </Link>
-                <DropdownMenuItem onClick={logout} className="gap-2 text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="gap-2 text-destructive focus:text-destructive"
+                >
                   <LogOut className="h-4 w-4" />
                   Logout
                 </DropdownMenuItem>
