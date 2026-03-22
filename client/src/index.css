@@ -101,9 +101,7 @@
 }
 
 .erp-header-shell {
-  position: sticky;
-  top: 0;
-  z-index: 30;
+  position: relative;
   padding: 1rem 1rem 0;
 }
 
@@ -116,7 +114,7 @@
   padding: 1rem;
   border: 1px solid var(--header-border);
   border-radius: 1.25rem;
-  background: color-mix(in srgb, var(--header-bg) 88%, transparent 12%);
+  background: color-mix(in srgb, var(--header-bg) 94%, transparent 6%);
   box-shadow: var(--header-shadow);
   backdrop-filter: blur(18px);
 }
@@ -246,20 +244,17 @@
 }
 
 .erp-header-card {
-  padding: 24px;
-  border-radius: 12px;
-  background: var(--card-bg);
+  padding: 20px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--card-bg) 94%, transparent 6%);
   box-shadow: var(--card-shadow);
-  position: sticky;
-  top: 0.75rem;
-  z-index: 20;
   border: 1px solid var(--border-color);
 }
 
 .erp-header-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
 }
 
