@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useUserStore } from "@/stores/user-store";
 
 const SIDEBAR_TOGGLE_EVENT = "erp:toggle-sidebar";
 
@@ -204,8 +205,8 @@ export function Sidebar() {
     analyticsActive,
   ]);
 
-  const userName = userProfile?.name?.trim() || "User";
-  const avatarUrl = userProfile?.avatarUrl?.trim() || "";
+  const userName = useUserStore((store) => store.name) || userProfile?.name?.trim() || "User";
+  const avatarUrl = useUserStore((store) => store.avatar) || userProfile?.avatarUrl?.trim() || "";
 
   const sections = useMemo(
     () => [

@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme";
 import { SIDEBAR_TOGGLE_EVENT } from "./Sidebar";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useUserStore } from "@/stores/user-store";
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   "/": {
@@ -135,8 +136,8 @@ export function Header() {
   };
 
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
-  const userName = userProfile.name?.trim() || "User";
-  const avatarUrl = userProfile.avatarUrl?.trim() || "";
+  const userName = useUserStore((store) => store.name) || userProfile.name?.trim() || "User";
+  const avatarUrl = useUserStore((store) => store.avatar) || userProfile.avatarUrl?.trim() || "";
 
   return (
     <header className="erp-header-shell">

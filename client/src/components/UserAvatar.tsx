@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUserStore } from "@/stores/user-store";
 import { cn } from "@/lib/utils";
 
 type UserAvatarProps = {
@@ -27,15 +28,18 @@ export function UserAvatar({
   fallbackClassName,
   imageClassName,
 }: UserAvatarProps) {
-  const initials = getInitials(name);
-  const cleanImageUrl = imageUrl?.trim();
+  const storedName = useUserStore((store) => store.name);
+  const storedAvatar = useUserStore((store) => store.avatar);
+  const resolvedName = name?.trim() || storedName || "User";
+  const resolvedImageUrl = imageUrl?.trim() || storedAvatar || "";
+  const initials = getInitials(resolvedName);
 
   return (
     <Avatar className={cn("ring-1 ring-black/5 dark:ring-white/10", className)}>
-      {cleanImageUrl ? (
+      {resolvedImageUrl ? (
         <AvatarImage
-          src={cleanImageUrl}
-          alt={name || "User avatar"}
+          src={resolvedImageUrl}
+          alt={resolvedName || "User avatar"}
           className={cn("object-cover", imageClassName)}
         />
       ) : null}
