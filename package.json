@@ -29,12 +29,14 @@
       "electron/**/*",
       "client/public/**/*",
       "package.json",
-      "node_modules/**/*"
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/bufferutil/**/*"
     ],
     "asar": true,
     "asarUnpack": [
       "dist/**",
-      "node_modules/better-sqlite3/**"
+      "node_modules/better-sqlite3/**",
+      "node_modules/bufferutil/**"
     ],
     "extraMetadata": {
       "main": "electron/main.cjs"
