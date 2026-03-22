@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
+import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
 import { PERMISSION_ROUTE_MAP } from "@shared/permissions";
 
@@ -149,7 +150,21 @@ export async function registerRoutes(
     if (typeof req.body?.phone === "string") payload.phone = req.body.phone;
     if (typeof req.body?.role === "string") payload.role = req.body.role;
     if (typeof req.body?.company === "string") payload.company = req.body.company;
-    if (typeof req.body?.avatarUrl === "string") payload.avatarUrl = req.body.avatarUrl;
+    if (typeof req.body?.avatarUrl === "string") {
+      if (req.body.avatarUrl.trim().length > 0) {
+        try {
+          assertProfileImageSize(req.body.avatarUrl);
+        } catch (error) {
+          return res.status(413).json({
+            message: error instanceof Error ? error.message : "Invalid profile image.",
+            profileImage: getProfileImageConfig(),
+            recommendedUploadMode: "multipart/form-data",
+          });
+        }
+      }
+
+      payload.avatarUrl = req.body.avatarUrl;
+    }
 
     const updated = await storage.updateUserProfile(currentUser.id, payload);
     if (!updated) {

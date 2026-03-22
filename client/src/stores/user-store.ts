@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { fileToBase64, validateProfileImageFile } from "@/lib/profile/profile-image";
 
 const USER_STORAGE_KEY = "jakhira:user-store";
 
@@ -54,29 +55,12 @@ function setState(updater: Partial<UserStoreState> | ((current: UserStoreState) 
   emitChange();
 }
 
-function fileToBase64(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Failed to convert image to Base64."));
-    };
-
-    reader.onerror = () => reject(new Error("Failed to read image file."));
-    reader.readAsDataURL(file);
-  });
-}
-
 const actions: UserStoreActions = {
   setUserName: (name) => {
     setState({ name: name.trim() || defaultState.name });
   },
   setAvatar: async (file) => {
+    validateProfileImageFile(file);
     const avatar = await fileToBase64(file);
     setState({ avatar });
     return avatar;
