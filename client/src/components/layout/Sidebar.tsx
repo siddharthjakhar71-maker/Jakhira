@@ -17,7 +17,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,8 +40,12 @@ type NavSectionProps = {
   children: React.ReactNode;
 };
 
-const dashboardNavigation: NavItem[] = [{ name: "Dashboard", href: "/", icon: LayoutDashboard }];
-const siteNavigation: NavItem[] = [{ name: "Sites", href: "/sites", icon: MapPinned }];
+const dashboardNavigation: NavItem[] = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+];
+const siteNavigation: NavItem[] = [
+  { name: "Sites", href: "/sites", icon: MapPinned },
+];
 const purchaseNavigation: NavItem[] = [
   { name: "Purchase Orders", href: "/pos", icon: ShoppingCart },
   { name: "GRN", href: "/grn", icon: Truck },
@@ -64,13 +67,22 @@ const financeNavigation: NavItem[] = [
   { name: "Vendor Statement", href: "/vendor-statement", icon: FileText },
   { name: "Vendor Payables", href: "/vendor-payables", icon: Wallet },
 ];
-const analyticsNavigation: NavItem[] = [{ name: "Cost Analysis", href: "/cost-analysis", icon: BarChart3 }];
+const analyticsNavigation: NavItem[] = [
+  { name: "Cost Analysis", href: "/cost-analysis", icon: BarChart3 },
+];
 const reportsNavigation: NavItem[] = [
   { name: "Reports", href: "/reports", icon: PieChart },
-  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
-function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean; onClick?: () => void }) {
+function NavLink({
+  item,
+  isActive,
+  onClick,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  onClick?: () => void;
+}) {
   const Icon = item.icon;
 
   return (
@@ -95,13 +107,24 @@ function NavLink({ item, isActive, onClick }: { item: NavItem; isActive: boolean
           <Icon className="h-4 w-4" />
         </span>
         <span className="flex-1 truncate">{item.name}</span>
-        {item.badge ? <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">{item.badge}</span> : null}
+        {item.badge ? (
+          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] text-primary">
+            {item.badge}
+          </span>
+        ) : null}
       </a>
     </Link>
   );
 }
 
-function NavSection({ title, icon: Icon, isActive, isOpen, onToggle, children }: NavSectionProps) {
+function NavSection({
+  title,
+  icon: Icon,
+  isActive,
+  isOpen,
+  onToggle,
+  children,
+}: NavSectionProps) {
   return (
     <div className="space-y-2">
       <button
@@ -109,14 +132,18 @@ function NavSection({ title, icon: Icon, isActive, isOpen, onToggle, children }:
         onClick={onToggle}
         className={cn(
           "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition-colors",
-          isActive ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white",
+          isActive
+            ? "bg-white/10 text-white"
+            : "text-slate-300 hover:bg-white/5 hover:text-white",
         )}
       >
         <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
           <Icon className="h-4 w-4" />
         </span>
         <span className="flex-1">{title}</span>
-        <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
+        <ChevronDown
+          className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
+        />
       </button>
       {isOpen ? <div className="space-y-1 pl-3">{children}</div> : null}
     </div>
@@ -129,7 +156,9 @@ export function Sidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const purchaseActive = purchaseNavigation.some((i) => location === i.href || location.startsWith("/purchase-orders"));
+  const purchaseActive = purchaseNavigation.some(
+    (i) => location === i.href || location.startsWith("/purchase-orders"),
+  );
   const vendorActive = vendorNavigation.some((i) => location === i.href);
   const inventoryActive = inventoryNavigation.some((i) => location === i.href);
   const financeActive = financeNavigation.some((i) => location === i.href);
@@ -166,7 +195,13 @@ export function Sidebar() {
     if (inventoryActive) setInventoryOpen(true);
     if (financeActive) setFinanceOpen(true);
     if (analyticsActive) setAnalyticsOpen(true);
-  }, [purchaseActive, vendorActive, inventoryActive, financeActive, analyticsActive]);
+  }, [
+    purchaseActive,
+    vendorActive,
+    inventoryActive,
+    financeActive,
+    analyticsActive,
+  ]);
 
   const userName = userProfile?.name?.trim() || "User";
   const role = userProfile?.role?.trim() || "Operations";
@@ -174,13 +209,64 @@ export function Sidebar() {
 
   const sections = useMemo(
     () => [
-      { key: "purchase", title: "Purchase", icon: ShoppingCart, active: purchaseActive, open: purchaseOpen, setOpen: setPurchaseOpen, items: purchaseNavigation },
-      { key: "vendors", title: "Vendors", icon: Users, active: vendorActive, open: vendorOpen, setOpen: setVendorOpen, items: vendorNavigation },
-      { key: "inventory", title: "Inventory", icon: Package, active: inventoryActive, open: inventoryOpen, setOpen: setInventoryOpen, items: inventoryNavigation },
-      { key: "finance", title: "Finance", icon: Wallet, active: financeActive, open: financeOpen, setOpen: setFinanceOpen, items: financeNavigation },
-      { key: "analytics", title: "Analytics", icon: BarChart3, active: analyticsActive, open: analyticsOpen, setOpen: setAnalyticsOpen, items: analyticsNavigation },
+      {
+        key: "purchase",
+        title: "Purchase",
+        icon: ShoppingCart,
+        active: purchaseActive,
+        open: purchaseOpen,
+        setOpen: setPurchaseOpen,
+        items: purchaseNavigation,
+      },
+      {
+        key: "vendors",
+        title: "Vendors",
+        icon: Users,
+        active: vendorActive,
+        open: vendorOpen,
+        setOpen: setVendorOpen,
+        items: vendorNavigation,
+      },
+      {
+        key: "inventory",
+        title: "Inventory",
+        icon: Package,
+        active: inventoryActive,
+        open: inventoryOpen,
+        setOpen: setInventoryOpen,
+        items: inventoryNavigation,
+      },
+      {
+        key: "finance",
+        title: "Finance",
+        icon: Wallet,
+        active: financeActive,
+        open: financeOpen,
+        setOpen: setFinanceOpen,
+        items: financeNavigation,
+      },
+      {
+        key: "analytics",
+        title: "Analytics",
+        icon: BarChart3,
+        active: analyticsActive,
+        open: analyticsOpen,
+        setOpen: setAnalyticsOpen,
+        items: analyticsNavigation,
+      },
     ],
-    [purchaseActive, purchaseOpen, vendorActive, vendorOpen, inventoryActive, inventoryOpen, financeActive, financeOpen, analyticsActive, analyticsOpen],
+    [
+      purchaseActive,
+      purchaseOpen,
+      vendorActive,
+      vendorOpen,
+      inventoryActive,
+      inventoryOpen,
+      financeActive,
+      financeOpen,
+      analyticsActive,
+      analyticsOpen,
+    ],
   );
 
   const closeMobile = () => {
@@ -200,22 +286,39 @@ export function Sidebar() {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-[280px] border-r border-white/10 bg-slate-950/95 text-white shadow-2xl backdrop-blur-xl transition-transform duration-300",
-          isMobile ? (isMobileOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
+          isMobile
+            ? isMobileOpen
+              ? "translate-x-0"
+              : "-translate-x-full"
+            : "translate-x-0",
         )}
       >
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
-              <img src="/Jakhira.png" alt="Jakhira ERP" className="h-8 w-8 rounded-xl object-contain" />
+              <img
+                src="/Jakhira.png"
+                alt="Jakhira ERP"
+                className="h-8 w-8 rounded-xl object-contain"
+              />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Jakhira ERP</p>
-              <p className="text-sm text-slate-200">Purchase & inventory suite</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Jakhira ERP
+              </p>
+              <p className="text-sm text-slate-200">
+                Purchase & inventory suite
+              </p>
             </div>
           </div>
 
           {isMobile ? (
-            <Button variant="ghost" size="icon" className="text-slate-200 hover:bg-white/10 hover:text-white" onClick={() => setIsMobileOpen(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-slate-200 hover:bg-white/10 hover:text-white"
+              onClick={() => setIsMobileOpen(false)}
+            >
               <X className="h-5 w-5" />
             </Button>
           ) : null}
@@ -228,38 +331,69 @@ export function Sidebar() {
                 {userName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{userName}</p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {userName}
+                </p>
                 <p className="truncate text-xs text-slate-400">{role}</p>
               </div>
             </div>
-            {email ? <p className="mt-3 truncate text-xs text-slate-500">{email}</p> : null}
+            {email ? (
+              <p className="mt-3 truncate text-xs text-slate-500">{email}</p>
+            ) : null}
           </div>
         </div>
 
         <ScrollArea className="h-[calc(100vh-10.75rem)] px-4 pb-6 pt-4">
           <div className="space-y-5">
             <div className="space-y-1.5">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Overview</p>
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Overview
+              </p>
               {[...dashboardNavigation, ...siteNavigation].map((item) => (
-                <NavLink key={item.name} item={item} isActive={location === item.href} onClick={closeMobile} />
+                <NavLink
+                  key={item.name}
+                  item={item}
+                  isActive={location === item.href}
+                  onClick={closeMobile}
+                />
               ))}
             </div>
 
             {sections.map((section) => (
               <div key={section.key} className="space-y-1.5">
-                <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{section.title}</p>
-                <NavSection title={section.title} icon={section.icon} isActive={section.active} isOpen={section.open} onToggle={() => section.setOpen((prev: boolean) => !prev)}>
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                  {section.title}
+                </p>
+                <NavSection
+                  title={section.title}
+                  icon={section.icon}
+                  isActive={section.active}
+                  isOpen={section.open}
+                  onToggle={() => section.setOpen((prev: boolean) => !prev)}
+                >
                   {section.items.map((item) => (
-                    <NavLink key={item.name} item={item} isActive={location === item.href} onClick={closeMobile} />
+                    <NavLink
+                      key={item.name}
+                      item={item}
+                      isActive={location === item.href}
+                      onClick={closeMobile}
+                    />
                   ))}
                 </NavSection>
               </div>
             ))}
 
             <div className="space-y-1.5">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Administration</p>
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                Administration
+              </p>
               {reportsNavigation.map((item) => (
-                <NavLink key={item.name} item={item} isActive={location === item.href} onClick={closeMobile} />
+                <NavLink
+                  key={item.name}
+                  item={item}
+                  isActive={location === item.href}
+                  onClick={closeMobile}
+                />
               ))}
             </div>
           </div>
