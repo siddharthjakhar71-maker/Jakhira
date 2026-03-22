@@ -4,6 +4,7 @@ export type AppTheme = "light" | "dark" | "system";
 
 type ThemeContextValue = {
   theme: AppTheme;
+  resolvedTheme: Exclude<AppTheme, "system">;
   primaryColor: string;
   setTheme: (theme: AppTheme) => void;
   setPrimaryColor: (color: string) => void;
@@ -21,11 +22,17 @@ function getSystemTheme(): Exclude<AppTheme, "system"> {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function resolveTheme(theme: AppTheme): Exclude<AppTheme, "system"> {
+  return theme === "system" ? getSystemTheme() : theme;
+}
+
 function applyTheme(theme: AppTheme) {
-  const resolvedTheme = theme === "system" ? getSystemTheme() : theme;
+  const resolvedTheme = resolveTheme(theme);
   document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
+  document.documentElement.dataset.theme = resolvedTheme;
   document.documentElement.style.colorScheme = resolvedTheme;
 }
+
 
 function applyPrimaryColor(color: string) {
   document.documentElement.style.setProperty("--primary-color", color);
@@ -67,14 +74,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(LEGACY_PRIMARY_STORAGE_KEY);
   }, [primaryColor]);
 
+  const resolvedTheme = useMemo(() => resolveTheme(theme), [theme]);
+
   const value = useMemo(
     () => ({
       theme,
+      resolvedTheme,
       primaryColor,
       setTheme: setThemeState,
       setPrimaryColor: setPrimaryColorState,
     }),
-    [theme, primaryColor],
+    [theme, resolvedTheme, primaryColor],
   );
 
   return createElement(ThemeContext.Provider, { value }, children);
