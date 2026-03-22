@@ -77,7 +77,7 @@ export function Header() {
   return (
     <header className="erp-header-shell">
       <div className="erp-header-panel">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-3 lg:gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <Button
               variant="outline"
@@ -88,7 +88,7 @@ export function Header() {
               <Menu className="h-5 w-5" />
             </Button>
 
-            <div className="min-w-0 space-y-2">
+            <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="erp-header-kicker">ERP Workspace</span>
                 <span className="erp-header-divider" aria-hidden="true" />
@@ -101,7 +101,7 @@ export function Header() {
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 lg:flex">
+          <div className="hidden items-center gap-2 lg:flex lg:self-start">
             <Link href="/settings">
               <a>
                 <Button type="button" variant="outline" className="erp-header-button-secondary">
@@ -136,7 +136,7 @@ export function Header() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 lg:gap-3.5 xl:flex-row xl:items-center xl:justify-between">
           <label className="erp-header-search w-full max-w-3xl">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
