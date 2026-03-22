@@ -3,7 +3,7 @@ import { Header } from "./Header";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0%,transparent_30%),linear-gradient(180deg,hsl(var(--background))_0%,color-mix(in_srgb,var(--bg)_92%,#e2e8f0_8%)_100%)] text-foreground dark:bg-[radial-gradient(circle_at_top,#1e293b_0%,transparent_28%),linear-gradient(180deg,#020617_0%,#0f172a_100%)]">
+    <div className="erp-app-frame">
       <Sidebar />
       <div className="min-h-screen lg:pl-[280px]">
         <Header />
