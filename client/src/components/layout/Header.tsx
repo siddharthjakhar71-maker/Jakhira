@@ -1,4 +1,4 @@
-import { Search, Bell, Plus, FileText, CreditCard, ShoppingCart, FileCheck, Settings, LogOut, ChevronDown } from "lucide-react";
+import { Search, Bell, Plus, FileText, CreditCard, ShoppingCart, FileCheck, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,60 +35,58 @@ export function Header() {
   ];
 
   const totalNotifications = notifications.length;
-  const userInitial = userProfile.name.charAt(0).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-3 shadow-[0_1px_0_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)] sm:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-1 items-center gap-3 lg:gap-4">
-          <div className="relative w-full max-w-xl">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
+    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+      <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-6">
+        <div className="flex-1 max-w-md">
+          <div className="flex items-center gap-2 rounded-xl border border-transparent bg-muted px-4 py-2 transition focus-within:border-primary/40 focus-within:bg-card">
+            <Search className="h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search PO, vendor, material..."
-              className="h-11 w-full rounded-2xl border border-border/70 bg-card pl-11 pr-4 text-sm text-foreground shadow-sm transition-all duration-200 outline-none placeholder:text-muted-foreground/80 hover:border-border focus:border-primary/60 focus:ring-4 focus:ring-primary/10"
-              data-testid="input-search"
+              placeholder="Search PO, vendor, bill..."
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                size="sm"
-                className="hidden h-11 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/95 hover:shadow-md sm:inline-flex"
-                data-testid="button-quick-action"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New PO
+              <Button className="hidden items-center gap-2 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90 sm:flex">
+                <Plus className="h-4 w-4" />
+                New
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mt-3 w-60 rounded-2xl border border-border/60 p-2 shadow-xl">
+
+            <DropdownMenuContent align="end" className="w-56 rounded-xl border-border bg-card text-foreground">
               <Link href="/pos#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 rounded-xl py-2.5">
+                <DropdownMenuItem className="gap-2">
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                  <span>Create Purchase Order</span>
+                  Purchase Order
                 </DropdownMenuItem>
               </Link>
+
               <Link href="/grn#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 rounded-xl py-2.5">
+                <DropdownMenuItem className="gap-2">
                   <FileCheck className="h-4 w-4 text-muted-foreground" />
-                  <span>Receive GRN</span>
+                  GRN
                 </DropdownMenuItem>
               </Link>
+
               <Link href="/bills#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 rounded-xl py-2.5">
+                <DropdownMenuItem className="gap-2">
                   <FileText className="h-4 w-4 text-muted-foreground" />
-                  <span>Record Bill / Invoice</span>
+                  Bill
                 </DropdownMenuItem>
               </Link>
+
               <Link href="/payments#new">
-                <DropdownMenuItem className="cursor-pointer gap-2 rounded-xl py-2.5">
+                <DropdownMenuItem className="gap-2">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <span>Log Payment</span>
+                  Payment
                 </DropdownMenuItem>
               </Link>
             </DropdownMenuContent>
@@ -96,35 +94,32 @@ export function Header() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative h-11 w-11 rounded-2xl border border-border/70 bg-card text-muted-foreground shadow-sm transition-all duration-200 hover:border-border hover:bg-accent hover:text-foreground hover:shadow-md"
-                data-testid="button-notifications"
-              >
-                <Bell className="h-5 w-5" />
-                <span className="sr-only">Open notifications</span>
+              <Button variant="ghost" size="icon" className="relative rounded-xl text-foreground hover:bg-accent">
+                <Bell className="h-5 w-5 text-foreground" />
+
                 {totalNotifications > 0 && (
-                  <span className="absolute right-2 top-2 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
                     {totalNotifications}
                   </span>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mt-3 w-72 rounded-2xl border border-border/60 p-2 shadow-xl">
-              <DropdownMenuLabel className="px-2 py-1.5 text-sm font-semibold">Notifications</DropdownMenuLabel>
+
+            <DropdownMenuContent align="end" className="w-72 rounded-xl border-border bg-card text-foreground">
+              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
+
               {totalNotifications === 0 ? (
-                <div className="px-2 py-6 text-center text-sm text-muted-foreground">All caught up!</div>
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No notifications
+                </div>
               ) : (
-                <div className="max-h-80 space-y-1 overflow-y-auto pt-1">
-                  {notifications.map((notification, index) => (
-                    <Link key={`${notification.label}-${index}`} href={notification.href}>
-                      <DropdownMenuItem className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl py-3">
-                        <span className="line-clamp-2 flex-1 text-sm leading-5">{notification.label}</span>
-                        <Badge variant={notification.variant} className="shrink-0 rounded-full px-2 py-0.5">
-                          {notification.count}
-                        </Badge>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.map((n, i) => (
+                    <Link key={i} href={n.href}>
+                      <DropdownMenuItem className="flex justify-between gap-3">
+                        <span className="text-sm text-foreground">{n.label}</span>
+                        <Badge variant={n.variant}>{n.count}</Badge>
                       </DropdownMenuItem>
                     </Link>
                   ))}
@@ -135,47 +130,37 @@ export function Header() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="group h-11 rounded-2xl border border-border/70 bg-card px-2.5 shadow-sm transition-all duration-200 hover:border-border hover:bg-accent hover:shadow-md"
-                data-testid="button-user-menu"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-sm">
-                    {userInitial}
-                  </div>
-                  <div className="hidden min-w-0 text-left sm:block">
-                    <p className="truncate text-sm font-medium text-foreground" data-testid="text-username">
-                      {userProfile.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">Account</p>
-                  </div>
-                  <ChevronDown className="hidden h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 sm:block" />
+              <Button variant="ghost" className="flex items-center gap-2 rounded-xl px-2 hover:bg-accent">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                  {userProfile.name.charAt(0)}
                 </div>
+
+                <span className="hidden text-sm font-medium text-foreground md:block">
+                  {userProfile.name}
+                </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="mt-3 w-60 rounded-2xl border border-border/60 p-2 shadow-xl">
-              <DropdownMenuLabel className="px-2 py-2 font-normal">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                    {userInitial}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium leading-none">{userProfile.name}</p>
-                    <p className="truncate pt-1 text-xs text-muted-foreground">{userProfile.email}</p>
-                  </div>
+
+            <DropdownMenuContent align="end" className="w-56 rounded-xl border-border bg-card text-foreground">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-foreground">{userProfile.name}</span>
+                  <span className="text-xs text-muted-foreground">{userProfile.email}</span>
                 </div>
               </DropdownMenuLabel>
+
               <DropdownMenuSeparator />
+
               <Link href="/settings">
-                <DropdownMenuItem className="cursor-pointer gap-2 rounded-xl py-2.5" data-testid="button-profile-settings">
+                <DropdownMenuItem className="gap-2">
                   <Settings className="h-4 w-4 text-muted-foreground" />
-                  <span>Settings</span>
+                  Settings
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem className="cursor-pointer gap-2 rounded-xl py-2.5 text-destructive focus:text-destructive" onClick={logout} data-testid="button-logout">
+
+              <DropdownMenuItem onClick={logout} className="gap-2 text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4" />
-                <span>Log out</span>
+                Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
