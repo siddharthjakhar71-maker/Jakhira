@@ -12,6 +12,7 @@ type SearchableSelectProps<T> = {
   getOptionLabel: (option: T) => string;
   getOptionValue: (option: T) => string;
   getOptionDescription?: (option: T) => string | null | undefined;
+  getOptionSearchText?: (option: T) => string | null | undefined;
   renderOption?: (option: T, state: { selected: boolean; active: boolean }) => ReactNode;
   disabled?: boolean;
   className?: string;
@@ -34,6 +35,7 @@ export function SearchableSelect<T>({
   getOptionLabel,
   getOptionValue,
   getOptionDescription,
+  getOptionSearchText,
   renderOption,
   disabled = false,
   className,
@@ -69,12 +71,13 @@ export function SearchableSelect<T>({
       ? options.filter((option) => {
           const label = getOptionLabel(option).toLowerCase();
           const description = getOptionDescription?.(option)?.toLowerCase() ?? "";
-          return label.includes(normalized) || description.includes(normalized);
+          const searchText = getOptionSearchText?.(option)?.toLowerCase() ?? "";
+          return label.includes(normalized) || description.includes(normalized) || searchText.includes(normalized);
         })
       : options;
 
     return matches.slice(0, maxResults);
-  }, [getOptionDescription, getOptionLabel, maxResults, options, query]);
+  }, [getOptionDescription, getOptionLabel, getOptionSearchText, maxResults, options, query]);
 
   useEffect(() => {
     if (activeIndex >= filteredOptions.length) {
