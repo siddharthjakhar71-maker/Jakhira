@@ -49,6 +49,15 @@ const getSiteAddressDefaults = (site?: any) => ({
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
 
+const getMaterialSearchCode = (material: Material) => {
+  const candidate = (material as Material & { code?: string | null; materialCode?: string | null; materialId?: string | null }).code
+    ?? (material as Material & { code?: string | null; materialCode?: string | null; materialId?: string | null }).materialCode
+    ?? (material as Material & { code?: string | null; materialCode?: string | null; materialId?: string | null }).materialId
+    ?? "";
+
+  return candidate?.toString() ?? "";
+};
+
 export default function PurchaseOrderCreate() {
   const { vendors, materials, sites, addPO, vendorMaterialRates } = useStore();
   const [, setLocation] = useLocation();
@@ -399,7 +408,8 @@ export default function PurchaseOrderCreate() {
                                   placeholder="Search material"
                                   getOptionLabel={(m) => m.name}
                                   getOptionValue={(m) => m.id.toString()}
-                                  getOptionDescription={(m) => m.unit || "-"}
+                                  getOptionDescription={(m) => [getMaterialSearchCode(m), m.category, m.unit].filter(Boolean).join(" • ") || "-"}
+                                  getOptionSearchText={(m) => [m.name, getMaterialSearchCode(m), m.category].filter(Boolean).join(" ")}
                                   onInputChange={() => {
                                     const next = [...items];
                                     next[index] = { ...next[index], materialId: "", rate: "" };
