@@ -1,6 +1,14 @@
+import type { PermissionMap } from "@/lib/permissions";
+
 import { queryOptions } from "@tanstack/react-query";
 
 
+
+export type AuthPermissionsResponse = {
+  role: string;
+  permissions: Array<{ module: string; action: string }>;
+  permissionMap: PermissionMap;
+};
 
 export type BackupSettings = { id: number; backupEnabled: number; backupFrequency: string; backupLocation: string; updatedAt: string };
 
@@ -86,6 +94,7 @@ export const api = {
     fetchJSON("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   logout: () => fetchJSON("/api/auth/logout", { method: "POST" }),
   me: () => fetchJSON("/api/auth/me"),
+  getPermissions: (): Promise<AuthPermissionsResponse> => fetchJSON("/api/auth/permissions"),
   getProfile: () => fetchJSON("/api/auth/profile"),
   updateProfile: (data: any) =>
     fetchJSON("/api/auth/profile", { method: "PATCH", body: JSON.stringify(data) }),

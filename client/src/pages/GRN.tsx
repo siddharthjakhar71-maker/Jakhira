@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { usePermissions } from "@/lib/permissions";
 
 export default function GRN() {
   const [, setLocation] = useLocation();
   const { grns, pos, materials, vendors, sites, addGRN, updateGRN, deleteGRN, searchQuery } = useStore();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [viewingGrnId, setViewingGrnId] = useState<number | null>(null);
@@ -155,7 +157,7 @@ export default function GRN() {
                   setReceivedItems([]);
               }
           }}>
-            <Button data-testid="button-receive-material" onClick={() => setLocation("/grn/create")}><Plus className="w-4 h-4 mr-2" /> Receive Material</Button>
+            {canCreate("GRN") ? <Button data-testid="button-receive-material" onClick={() => setLocation("/grn/create")}><Plus className="w-4 h-4 mr-2" /> Receive Material</Button> : null}
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingId ? 'Edit GRN' : 'Create Partial/Full GRN'}</DialogTitle>
@@ -356,10 +358,10 @@ export default function GRN() {
                               </Button>
                               {grn.status === 'Pending Bill' ? (
                                   <>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(grn)}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(grn)} disabled={!canEdit("GRN")}>
                                         <Edit className="w-4 h-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteGRN(grn.id)}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteGRN(grn.id)} disabled={!canDelete("GRN")}>
                                         <Trash2 className="w-4 h-4" />
                                     </Button>
                                   </>

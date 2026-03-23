@@ -22,6 +22,7 @@ import VendorPayables from "./pages/VendorPayables";
 import CostAnalysis from "./pages/CostAnalysis";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Users from "./pages/Users";
 import Login from "./pages/Login";
 import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
@@ -30,6 +31,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUserStore } from "@/stores/user-store";
+import { usePermissions, type PermissionModule } from "@/lib/permissions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +61,23 @@ function UserStoreInitializer() {
   return null;
 }
 
+function ProtectedRoute({ moduleName, component: Component }: { moduleName: PermissionModule; component: React.ComponentType }) {
+  const { canView } = usePermissions();
+
+  if (!canView(moduleName)) {
+    return (
+      <AppLayout>
+        <div className="flex h-full flex-col items-center justify-center gap-4 pt-20 text-muted-foreground">
+          <h1 className="text-2xl font-semibold text-foreground">Access Denied</h1>
+          <p className="text-sm">You do not have permission to view the {moduleName} module.</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return <Component />;
+}
+
 function Router() {
   const { isAuthenticated, isAuthLoading } = useStore();
   const [location, setLocation] = useLocation();
@@ -78,29 +97,24 @@ function Router() {
     }
   }, [isAuthenticated, isAuthLoading, location, setLocation]);
 
-  if (isAuthLoading) {
-    return null;
-  }
-
-  if (!isAuthenticated && location !== "/login") {
-    return null;
-  }
+  if (isAuthLoading) return null;
+  if (!isAuthenticated && location !== "/login") return null;
 
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      <Route path="/" component={Dashboard} />
-      <Route path="/sites" component={Sites} />
-      <Route path="/vendors" component={Vendors} />
-      <Route path="/materials" component={Materials} />
-      <Route path="/pos" component={PurchaseOrders} />
-      <Route path="/purchase-orders/create" component={PurchaseOrderCreate} />
-      <Route path="/grn" component={GRN} />
-      <Route path="/grn/create" component={GRNCreate} />
-      <Route path="/bills" component={Bills} />
-      <Route path="/bills/create" component={BillCreate} />
-      <Route path="/payments" component={Payments} />
-      <Route path="/payments/create" component={PaymentCreate} />
+      <Route path="/" component={() => <ProtectedRoute moduleName="Dashboard" component={Dashboard} />} />
+      <Route path="/sites" component={() => <ProtectedRoute moduleName="Sites" component={Sites} />} />
+      <Route path="/vendors" component={() => <ProtectedRoute moduleName="Vendors" component={Vendors} />} />
+      <Route path="/materials" component={() => <ProtectedRoute moduleName="Materials" component={Materials} />} />
+      <Route path="/pos" component={() => <ProtectedRoute moduleName="Purchase Orders" component={PurchaseOrders} />} />
+      <Route path="/purchase-orders/create" component={() => <ProtectedRoute moduleName="Purchase Orders" component={PurchaseOrderCreate} />} />
+      <Route path="/grn" component={() => <ProtectedRoute moduleName="GRN" component={GRN} />} />
+      <Route path="/grn/create" component={() => <ProtectedRoute moduleName="GRN" component={GRNCreate} />} />
+      <Route path="/bills" component={() => <ProtectedRoute moduleName="Bills" component={Bills} />} />
+      <Route path="/bills/create" component={() => <ProtectedRoute moduleName="Bills" component={BillCreate} />} />
+      <Route path="/payments" component={() => <ProtectedRoute moduleName="Payments" component={Payments} />} />
+      <Route path="/payments/create" component={() => <ProtectedRoute moduleName="Payments" component={PaymentCreate} />} />
       <Route path="/vendor-payments" component={VendorPayments} />
       <Route path="/rate-comparison" component={RateComparison} />
       <Route path="/vendor-rate-list" component={VendorRateList} />
@@ -112,11 +126,12 @@ function Router() {
       <Route path="/stock" component={StockManagement} />
       <Route path="/rate-history" component={RateHistory} />
       <Route path="/reports" component={Reports} />
-      <Route path="/settings" component={Settings} />
+      <Route path="/settings" component={() => <ProtectedRoute moduleName="Settings" component={Settings} />} />
+      <Route path="/users" component={() => <ProtectedRoute moduleName="Users" component={Users} />} />
       <Route>
         {() => (
           <AppLayout>
-            <div className="h-full flex items-center justify-center flex-col gap-4 text-muted-foreground pt-20">
+            <div className="flex h-full flex-col items-center justify-center gap-4 pt-20 text-muted-foreground">
               <div className="text-4xl font-light text-muted">404</div>
               <h1 className="text-2xl font-semibold text-foreground">Page Not Found</h1>
             </div>

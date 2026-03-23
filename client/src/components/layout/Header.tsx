@@ -28,6 +28,7 @@ import { useTheme } from "@/lib/theme";
 import { SIDEBAR_TOGGLE_EVENT } from "./Sidebar";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useUserStore } from "@/stores/user-store";
+import { usePermissions } from "@/lib/permissions";
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   "/": {
@@ -60,14 +61,10 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 };
 
 const quickCreateItems = [
-  {
-    href: "/purchase-orders/create",
-    label: "Purchase Order",
-    icon: ShoppingCart,
-  },
-  { href: "/grn/create", label: "GRN", icon: Truck },
-  { href: "/bills/create", label: "Bill", icon: FileText },
-  { href: "/payments/create", label: "Payment", icon: Wallet },
+  { href: "/purchase-orders/create", label: "Purchase Order", icon: ShoppingCart, module: "Purchase Orders" as const },
+  { href: "/grn/create", label: "GRN", icon: Truck, module: "GRN" as const },
+  { href: "/bills/create", label: "Bill", icon: FileText, module: "Bills" as const },
+  { href: "/payments/create", label: "Payment", icon: Wallet, module: "Payments" as const },
 ];
 
 export function Header() {
@@ -84,6 +81,7 @@ export function Header() {
   } = useStore();
   const { resolvedTheme, setTheme } = useTheme();
   const [location] = useLocation();
+  const { canCreate, canView } = usePermissions();
 
   const unpaidBills = bills.filter((b) => b.status === "Unpaid");
   const pendingPOs = pos.filter((p) => p.status === "Pending");
@@ -182,7 +180,7 @@ export function Header() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 rounded-2xl">
-                {quickCreateItems.map((item) => {
+                {quickCreateItems.filter((item) => canCreate(item.module)).map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link key={item.href} href={item.href}>
@@ -301,11 +299,13 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <Link href="/settings">
-                  <DropdownMenuItem className="gap-2">
-                    Settings
-                  </DropdownMenuItem>
-                </Link>
+                {canView("Settings") ? (
+                  <Link href="/settings">
+                    <DropdownMenuItem className="gap-2">
+                      Settings
+                    </DropdownMenuItem>
+                  </Link>
+                ) : null}
                 <DropdownMenuItem
                   onClick={logout}
                   className="gap-2 text-destructive focus:text-destructive"

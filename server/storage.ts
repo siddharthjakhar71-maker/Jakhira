@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { hashPassword, isPasswordHashed } from "./auth";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, isAdminRole } from "@shared/permissions";
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
   materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
@@ -1104,9 +1105,47 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async ensurePermissionsSeeded(): Promise<void> {
+    const existingPermissions = await db.select().from(permissions);
+    const existingKeys = new Set(existingPermissions.map((permission) => `${permission.module}:${permission.action}`));
+
+    const missingPermissions = ERP_PERMISSION_MODULES.flatMap((moduleName) =>
+      ERP_PERMISSION_ACTIONS.filter((action) => !existingKeys.has(`${moduleName}:${action}`)).map((action) => ({
+        module: moduleName,
+        action,
+      })),
+    );
+
+    if (missingPermissions.length > 0) {
+      await db.insert(permissions).values(missingPermissions);
+    }
+  }
+
+  async getRolePermissions(role: string): Promise<Array<{ module: string; action: string }>> {
+    await this.ensurePermissionsSeeded();
+
+    const normalizedRole = role.trim();
+    if (!normalizedRole) return [];
+
+    if (isAdminRole(normalizedRole)) {
+      return ERP_PERMISSION_MODULES.flatMap((moduleName) =>
+        ERP_PERMISSION_ACTIONS.map((action) => ({ module: moduleName, action })),
+      );
+    }
+
+    return db
+      .select({ module: permissions.module, action: permissions.action })
+      .from(rolePermissions)
+      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+      .where(eq(rolePermissions.role, normalizedRole));
+  }
+
   async userHasPermission(role: string, moduleName: string, action: string): Promise<boolean> {
     const normalizedRole = (role || "").trim();
     if (!normalizedRole) return false;
+    if (isAdminRole(normalizedRole)) return true;
+
+    await this.ensurePermissionsSeeded();
 
     const matchingPermissions = await db
       .select({ id: permissions.id })

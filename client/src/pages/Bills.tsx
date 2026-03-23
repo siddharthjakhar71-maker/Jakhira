@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { usePermissions } from "@/lib/permissions";
 
 export default function Bills() {
   const [, setLocation] = useLocation();
   const { bills, grns, pos, vendors, sites, materials, addBill, updateBill, deleteBill, searchQuery } = useStore();
+  const { canCreate, canEdit, canDelete, canApprove } = usePermissions();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [viewingBillId, setViewingBillId] = useState<number | null>(null);
@@ -165,7 +167,7 @@ export default function Bills() {
               resetForm();
             }
           }}>
-            <Button data-testid="button-record-bill" onClick={() => setLocation("/bills/create")}><Plus className="w-4 h-4 mr-2" /> Record Bill</Button>
+            {canCreate("Bills") ? <Button data-testid="button-record-bill" onClick={() => setLocation("/bills/create")}><Plus className="w-4 h-4 mr-2" /> Record Bill</Button> : null}
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingId ? 'Edit Bill' : 'Record Vendor Bill'}</DialogTitle>
@@ -334,11 +336,11 @@ export default function Bills() {
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setViewingBillId(null); handleOpenEdit(viewingBill); }}>
+                  <Button variant="outline" onClick={() => { setViewingBillId(null); handleOpenEdit(viewingBill); }} disabled={!canEdit("Bills")}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  <Button variant="secondary" onClick={() => setViewingBillId(null)}>
+                  {canApprove("Bills") ? <Button variant="outline" onClick={() => updateBill(viewingBill.id, { status: "Approved" })}>Approve</Button> : null}<Button variant="secondary" onClick={() => setViewingBillId(null)}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back
                   </Button>
@@ -400,10 +402,10 @@ export default function Bills() {
                           </Button>
                           {bill.status === 'Unpaid' ? (
                             <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(bill)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(bill)} disabled={!canEdit("Bills")}>
                                 <Edit className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteBill(bill.id)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteBill(bill.id)} disabled={!canDelete("Bills")}>
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </>

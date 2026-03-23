@@ -3,8 +3,8 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
-import { PERMISSION_ROUTE_MAP } from "@shared/permissions";
-import { getSessionUser, requireAuth } from "./auth-middleware";
+import { createEmptyPermissionMap, permissionMapFromRecords } from "@shared/permissions";
+import { getSessionUser, requireAuth, requirePermission } from "./auth-middleware";
 import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
 
 export async function registerRoutes(
@@ -36,23 +36,6 @@ export async function registerRoutes(
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
-  };
-
-  const requirePermission = async (req: Request, res: any, action: string): Promise<boolean> => {
-    const user = await getCurrentUser(req);
-    if (!user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return false;
-    }
-
-    const moduleName = PERMISSION_ROUTE_MAP[req.path as keyof typeof PERMISSION_ROUTE_MAP];
-    if (!moduleName) return true;
-    const allowed = await storage.userHasPermission(user.role, moduleName, action);
-    if (!allowed) {
-      res.status(403).json({ message: `Permission denied: ${moduleName}.${action}` });
-      return false;
-    }
-    return true;
   };
 
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -110,6 +93,7 @@ export async function registerRoutes(
     }
 
     await storage.ensureDefaultAdminUser();
+    await storage.ensurePermissionsSeeded();
     const user = await storage.getUserByEmail(email);
 
     if (!user || !user.isActive || !verifyPassword(password, user.password)) {
@@ -155,6 +139,21 @@ export async function registerRoutes(
   app.get("/api/auth/me", async (req, res) => {
     const user = await getCurrentUser(req);
     return res.json({ user: sanitizeUser(user) });
+  });
+
+  app.get("/api/auth/permissions", async (req, res) => {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const permissionRecords = await storage.getRolePermissions(user.role);
+    return res.json({
+      role: user.role,
+      permissions: permissionRecords,
+      permissionMap: permissionMapFromRecords(permissionRecords),
+      modules: createEmptyPermissionMap(),
+    });
   });
 
   app.get("/api/auth/profile", async (req, res) => {
@@ -349,12 +348,12 @@ export async function registerRoutes(
   });
 
   // Purchase Orders
-  app.get("/api/pos", async (_req, res) => {
+  app.get("/api/pos", requirePermission("Purchase Orders", "view"), async (_req, res) => {
     const result = await storage.getPurchaseOrders();
     res.json(result);
   });
 
-  app.post("/api/pos", async (req, res) => {
+  app.post("/api/pos", requirePermission("Purchase Orders", "create"), async (req, res) => {
     if (!req.body?.siteId) {
       return res.status(400).json({ message: "siteId is required for purchase orders" });
     }
@@ -366,24 +365,23 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/pos/:id", async (req, res) => {
+  app.patch("/api/pos/:id", requirePermission("Purchase Orders", "edit"), async (req, res) => {
     const result = await storage.updatePurchaseOrder(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/pos/:id", async (req, res) => {
+  app.delete("/api/pos/:id", requirePermission("Purchase Orders", "delete"), async (req, res) => {
     await storage.deletePurchaseOrder(Number(req.params.id));
     res.json({ success: true });
   });
 
   // GRNs
-  app.get("/api/grns", async (req, res) => {
-    if (!(await requirePermission(req, res, "view"))) return;
+  app.get("/api/grns", requirePermission("GRN", "view"), async (_req, res) => {
     const result = await storage.getGrns();
     res.json(result);
   });
 
-  app.post("/api/grns", async (req, res) => {
+  app.post("/api/grns", requirePermission("GRN", "create"), async (req, res) => {
     const poNumber = req.body?.poId;
     const purchaseOrders = await storage.getPurchaseOrders();
     const po = purchaseOrders.find((item) => item.displayId === poNumber);
@@ -395,24 +393,23 @@ export async function registerRoutes(
     res.json(result);
   });
 
-  app.patch("/api/grns/:id", async (req, res) => {
+  app.patch("/api/grns/:id", requirePermission("GRN", "edit"), async (req, res) => {
     const result = await storage.updateGrn(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/grns/:id", async (req, res) => {
+  app.delete("/api/grns/:id", requirePermission("GRN", "delete"), async (req, res) => {
     await storage.deleteGrn(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Bills
-  app.get("/api/bills", async (req, res) => {
-    if (!(await requirePermission(req, res, "view"))) return;
+  app.get("/api/bills", requirePermission("Bills", "view"), async (_req, res) => {
     const result = await storage.getBills();
     res.json(result);
   });
 
-  app.post("/api/bills", async (req, res) => {
+  app.post("/api/bills", requirePermission("Bills", "create"), async (req, res) => {
     const poNumber = req.body?.poId;
     const purchaseOrders = await storage.getPurchaseOrders();
     const po = purchaseOrders.find((item) => item.displayId === poNumber);
@@ -424,34 +421,33 @@ export async function registerRoutes(
     res.json(result);
   });
 
-  app.patch("/api/bills/:id", async (req, res) => {
+  app.patch("/api/bills/:id", requirePermission("Bills", "edit"), async (req, res) => {
     const result = await storage.updateBill(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/bills/:id", async (req, res) => {
+  app.delete("/api/bills/:id", requirePermission("Bills", "delete"), async (req, res) => {
     await storage.deleteBill(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Payments
-  app.get("/api/payments", async (req, res) => {
-    if (!(await requirePermission(req, res, "view"))) return;
+  app.get("/api/payments", requirePermission("Payments", "view"), async (_req, res) => {
     const result = await storage.getPayments();
     res.json(result);
   });
 
-  app.post("/api/payments", async (req, res) => {
+  app.post("/api/payments", requirePermission("Payments", "create"), async (req, res) => {
     const result = await storage.createPayment(req.body);
     res.json(result);
   });
 
-  app.patch("/api/payments/:id", async (req, res) => {
+  app.patch("/api/payments/:id", requirePermission("Payments", "edit"), async (req, res) => {
     const result = await storage.updatePayment(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/payments/:id", async (req, res) => {
+  app.delete("/api/payments/:id", requirePermission("Payments", "delete"), async (req, res) => {
     await storage.deletePayment(Number(req.params.id));
     res.json({ success: true });
   });
@@ -551,22 +547,28 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/system-tools/settings", async (_req, res) => {
+
+  app.get("/api/users", requirePermission("Users", "view"), async (_req, res) => {
+    const result = await storage.getUsers();
+    res.json(result.map(sanitizeUser));
+  });
+
+  app.get("/api/system-tools/settings", requirePermission("Settings", "view"), async (_req, res) => {
     const result = await storage.getSystemSettings();
     res.json(result);
   });
 
-  app.patch("/api/system-tools/settings", async (req, res) => {
+  app.patch("/api/system-tools/settings", requirePermission("Settings", "edit"), async (req, res) => {
     const result = await storage.updateSystemSettings(req.body);
     res.json(result);
   });
 
-  app.post("/api/system-tools/backup", async (req, res) => {
+  app.post("/api/system-tools/backup", requirePermission("Settings", "approve"), async (req, res) => {
     const result = await storage.createDatabaseBackup();
     res.json(result);
   });
 
-  app.get("/api/system-tools/backup/download", async (req, res) => {
+  app.get("/api/system-tools/backup/download", requirePermission("Settings", "view"), async (req, res) => {
     const result = await storage.createDatabaseBackup();
     res.download(result.filePath, result.fileName);
   });
@@ -575,7 +577,7 @@ export async function registerRoutes(
     res.json([]);
   });
 
-  app.post("/api/system-tools/reset-demo-data", async (req, res) => {
+  app.post("/api/system-tools/reset-demo-data", requirePermission("Settings", "delete"), async (req, res) => {
     const { adminPassword } = req.body;
     const currentUser = await getCurrentUser(req);
     if (!currentUser || !verifyPassword(adminPassword, currentUser.password)) {

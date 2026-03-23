@@ -19,6 +19,7 @@ import { generatePOPdf, generatePOExcel, DEFAULT_LAYOUT_BLOCKS } from "@/lib/poD
 import { DEFAULT_TEMPLATE_CONFIG } from "@/lib/defaultTemplate";
 import { api } from "@/lib/api";
 import type { POTemplateConfig, LayoutBlock } from "@/lib/store";
+import { usePermissions } from "@/lib/permissions";
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
@@ -35,6 +36,7 @@ export default function PurchaseOrders() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [viewPO, setViewPO] = useState<any | null>(null);
   const [, setLocation] = useLocation();
+  const { canCreate, canEdit, canDelete, canApprove } = usePermissions();
 
   const [formData, setFormData] = useState({ 
     siteId: '',
@@ -348,7 +350,7 @@ export default function PurchaseOrders() {
             <h1 className="text-2xl font-bold tracking-tight">Purchase Orders</h1>
             <p className="text-sm text-muted-foreground">Create and manage purchase orders to vendors.</p>
           </div>
-          <Button data-testid="button-create-po" onClick={() => setLocation('/purchase-orders/create')}><Plus className="w-4 h-4 mr-2" /> Create PO</Button>
+          {canCreate("Purchase Orders") ? <Button data-testid="button-create-po" onClick={() => setLocation('/purchase-orders/create')}><Plus className="w-4 h-4 mr-2" /> Create PO</Button> : null}
             <Dialog open={editingId !== null} onOpenChange={(isOpen) => {
               if (!isOpen) {
                 setEditingId(null);
@@ -629,10 +631,10 @@ export default function PurchaseOrders() {
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => setViewPO(po)} data-testid={`button-view-po-${po.id}`}>
                                   <Eye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(po)} data-testid={`button-edit-po-${po.id}`}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(po)} disabled={!canEdit("Purchase Orders")} data-testid={`button-edit-po-${po.id}`}>
                                   <Edit className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deletePO(po.id)} data-testid={`button-delete-po-${po.id}`}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deletePO(po.id)} disabled={!canDelete("Purchase Orders")} data-testid={`button-delete-po-${po.id}`}>
                                   <Trash2 className="w-4 h-4" />
                               </Button>
                           </div>
@@ -755,10 +757,11 @@ export default function PurchaseOrders() {
                       <Printer className="h-4 w-4 mr-2" />
                       Print PO
                     </Button>
-                    <Button variant="outline" onClick={() => { setViewPO(null); handleOpenEdit(viewPO); }}>
+                    {canEdit("Purchase Orders") ? <Button variant="outline" onClick={() => { setViewPO(null); handleOpenEdit(viewPO); }}>
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
-                    </Button>
+                    </Button> : null}
+                    {canApprove("Purchase Orders") ? <Button variant="outline" onClick={() => updatePOStatus(viewPO.id, "Approved")}>Approve</Button> : null}
                     <Button variant="secondary" onClick={() => setViewPO(null)}>
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back
