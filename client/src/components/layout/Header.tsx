@@ -11,6 +11,9 @@ import {
   Wallet,
   FileText,
   LogOut,
+  Settings2,
+  ShieldCheck,
+  UserCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,7 +84,7 @@ export function Header() {
   } = useStore();
   const { resolvedTheme, setTheme } = useTheme();
   const [location] = useLocation();
-  const { canCreate, canView } = usePermissions();
+  const { canCreate, canView, isAdmin } = usePermissions();
 
   const unpaidBills = bills.filter((b) => b.status === "Unpaid");
   const pendingPOs = pos.filter((p) => p.status === "Pending");
@@ -299,10 +302,25 @@ export function Header() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {canView("Settings") ? (
-                  <Link href="/settings">
+                <Link href="/profile">
+                  <DropdownMenuItem className="gap-2">
+                    <UserCircle2 className="h-4 w-4" />
+                    My Profile
+                  </DropdownMenuItem>
+                </Link>
+                {isAdmin && canView("Users") ? (
+                  <Link href="/access-control">
                     <DropdownMenuItem className="gap-2">
-                      Settings
+                      <ShieldCheck className="h-4 w-4" />
+                      Access Control
+                    </DropdownMenuItem>
+                  </Link>
+                ) : null}
+                {canView("Settings") ? (
+                  <Link href="/preferences">
+                    <DropdownMenuItem className="gap-2">
+                      <Settings2 className="h-4 w-4" />
+                      Preferences
                     </DropdownMenuItem>
                   </Link>
                 ) : null}
