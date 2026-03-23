@@ -572,7 +572,7 @@ sqlite.exec(`
 sqlite.exec("DELETE FROM role_permissions WHERE role IN ('Admin', 'Viewer');");
 
 const modulePermissions = sqlite
-  .prepare("SELECT id, module, action FROM permissions WHERE module IN (?, ?, ?)")
+  .prepare("SELECT id, module, action FROM permissions WHERE module IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
   .all(...ERP_PERMISSION_MODULES) as Array<{ id: number; module: string; action: string }>;
 
 for (const permission of modulePermissions) {

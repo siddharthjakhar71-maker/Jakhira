@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useRef } from "react";
 import * as XLSX from 'xlsx';
+import { usePermissions } from "@/lib/permissions";
 
 export default function Materials() {
   const { materials, addMaterial, updateMaterial, deleteMaterial, addMaterials, searchQuery } = useStore();
   const [open, setOpen] = useState(false);
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ name: '', category: '', unit: '', defaultRate: '' });
   const [viewMaterial, setViewMaterial] = useState<any | null>(null);
@@ -81,9 +83,9 @@ export default function Materials() {
           </div>
           <div className="flex gap-2">
             <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-import-materials">
+            {canCreate("Materials") ? <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-import-materials">
               <Upload className="w-4 h-4 mr-2" /> Import
-            </Button>
+            </Button> : null}
             <Dialog open={open} onOpenChange={(isOpen) => {
                 setOpen(isOpen);
                 if(!isOpen) {
@@ -92,7 +94,7 @@ export default function Materials() {
                 }
             }}>
               <DialogTrigger asChild>
-                <Button data-testid="button-add-material"><Plus className="w-4 h-4 mr-2" /> Add Material</Button>
+                {canCreate("Materials") ? <Button data-testid="button-add-material"><Plus className="w-4 h-4 mr-2" /> Add Material</Button> : null}
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -148,12 +150,12 @@ export default function Materials() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => setViewMaterial(item)} data-testid={`button-view-material-${item.id}`}>
                                 <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(item)} data-testid={`button-edit-material-${item.id}`}>
+                            {canEdit("Materials") ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(item)} data-testid={`button-edit-material-${item.id}`}>
                                 <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMaterial(item.id)} data-testid={`button-delete-material-${item.id}`}>
+                            </Button> : null}
+                            {canDelete("Materials") ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteMaterial(item.id)} data-testid={`button-delete-material-${item.id}`}>
                                 <Trash2 className="w-4 h-4" />
-                            </Button>
+                            </Button> : null}
                         </div>
                     </TableCell>
                   </TableRow>
@@ -202,10 +204,10 @@ export default function Materials() {
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setViewMaterial(null); handleOpenEdit(viewMaterial); }}>
+                  {canEdit("Materials") ? <Button variant="outline" onClick={() => { setViewMaterial(null); handleOpenEdit(viewMaterial); }}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
-                  </Button>
+                  </Button> : null}
                   <Button variant="secondary" onClick={() => setViewMaterial(null)}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back

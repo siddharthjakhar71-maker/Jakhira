@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
 export default function StockManagement() {
+  const { canCreate, canDelete } = usePermissions();
   const { 
     siteStocks, 
     materialIssues, 
@@ -182,9 +183,9 @@ export default function StockManagement() {
                 setIsIssueDialogOpen(open);
                 if (!open) resetIssueForm();
               }}>
-                <DialogTrigger asChild>
+                {canCreate("Stock") ? <DialogTrigger asChild>
                   <Button data-testid="button-create-issue"><Plus className="w-4 h-4 mr-2" /> Create Material Issue</Button>
-                </DialogTrigger>
+                </DialogTrigger> : null}
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create Material Issue</DialogTitle>
@@ -303,7 +304,7 @@ export default function StockManagement() {
                             {issue.notes || "-"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button 
+                            {canDelete("Stock") ? <Button 
                               variant="ghost" 
                               size="icon" 
                               className="text-destructive" 
@@ -311,7 +312,7 @@ export default function StockManagement() {
                               data-testid={`button-delete-issue-${issue.id}`}
                             >
                               <Trash2 className="w-4 h-4" />
-                            </Button>
+                            </Button> : null}
                           </TableCell>
                         </TableRow>
                       );

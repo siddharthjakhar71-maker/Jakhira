@@ -10,6 +10,18 @@ export type AuthPermissionsResponse = {
   permissionMap: PermissionMap;
 };
 
+
+export type AppUser = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  isActive: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type BackupSettings = { id: number; backupEnabled: number; backupFrequency: string; backupLocation: string; updatedAt: string };
 
 export type LedgerEntry = {
@@ -145,7 +157,9 @@ export const api = {
   deleteBill: (id: number) => fetchJSON(`/api/bills/${id}`, { method: "DELETE" }),
 
   getPayments: () => fetchJSON("/api/payments"),
-
+  getUsers: (): Promise<AppUser[]> => fetchJSON("/api/users"),
+  createUser: (data: any) => fetchJSON("/api/users", { method: "POST", body: JSON.stringify(data) }),
+  updateUser: (id: number, data: any) => fetchJSON(`/api/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   getVendorLedger: (vendorId: string, startDate?: string, endDate?: string) => {
     const params = new URLSearchParams();

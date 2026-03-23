@@ -32,12 +32,12 @@ export const MODULE_ROUTE_MATCHERS: Array<{ pattern: RegExp; module: PermissionM
   { pattern: /^\/api\/sites(?:\/|$)/, module: "Sites" },
   { pattern: /^\/api\/vendors(?:\/|$)/, module: "Vendors" },
   { pattern: /^\/api\/materials(?:\/|$)/, module: "Materials" },
-  { pattern: /^\/api\/pos(?:\/|$)/, module: "Purchase Orders" },
+  { pattern: /^\/api\/(?:po-templates|template-styles|pos)(?:\/|$)/, module: "Purchase Orders" },
   { pattern: /^\/api\/grns?(?:\/|$)/, module: "GRN" },
   { pattern: /^\/api\/bills?(?:\/|$)/, module: "Bills" },
   { pattern: /^\/api\/payments?(?:\/|$)/, module: "Payments" },
-  { pattern: /^\/api\/(?:site-stock|material-issues)(?:\/|$)/, module: "Stock" },
-  { pattern: /^\/api\/(?:reports|cost-analysis|vendor-ledger|vendor-statement|vendor-payables)(?:\/|$)/, module: "Reports" },
+  { pattern: /^\/api\/(?:site-stock|material-issues|rate-history|vendor-material-rates)(?:\/|$)/, module: "Stock" },
+  { pattern: /^\/api\/(?:reports|cost-analysis|vendor-ledger|vendor-statement|vendor-payables|vendor-rate-import)(?:\/|$)/, module: "Reports" },
   { pattern: /^\/api\/users(?:\/|$)/, module: "Users" },
   { pattern: /^\/api\/system-tools(?:\/|$)/, module: "Settings" },
 ];
@@ -59,9 +59,7 @@ export function createEmptyPermissionMap(): PermissionMap {
   }, {} as PermissionMap);
 }
 
-export function permissionMapFromRecords(
-  records: Array<{ module: string; action: string }>,
-): PermissionMap {
+export function permissionMapFromRecords(records: Array<{ module: string; action: string }>): PermissionMap {
   const permissionMap = createEmptyPermissionMap();
 
   for (const record of records) {
