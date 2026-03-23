@@ -60,14 +60,27 @@ function UserStoreInitializer() {
 }
 
 function Router() {
-  const { isAuthenticated } = useStore();
+  const { isAuthenticated, isAuthLoading } = useStore();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
     if (!isAuthenticated && location !== "/login") {
       setLocation("/login");
+      return;
     }
-  }, [isAuthenticated, location, setLocation]);
+
+    if (isAuthenticated && location === "/login") {
+      setLocation("/");
+    }
+  }, [isAuthenticated, isAuthLoading, location, setLocation]);
+
+  if (isAuthLoading) {
+    return null;
+  }
 
   if (!isAuthenticated && location !== "/login") {
     return null;
