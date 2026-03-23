@@ -252,12 +252,11 @@ export function Sidebar() {
       {
         key: "admin",
         title: "Administration",
-        icon: Users,
-        active: location === "/users" || location === "/settings",
-        open: location === "/users" || location === "/settings",
+        icon: Menu,
+        active: location.startsWith("/settings"),
+        open: location.startsWith("/settings"),
         setOpen: () => undefined,
         items: [
-          { name: "Users", href: "/users", icon: Users, module: "Users" as PermissionModule },
           { name: "Settings", href: "/settings", icon: Menu, module: "Settings" as PermissionModule },
         ].filter((item) => canView(item.module)),
       },

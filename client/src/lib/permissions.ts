@@ -1,15 +1,24 @@
 import {
   ERP_PERMISSION_ACTIONS,
   ERP_PERMISSION_MODULES,
+  ERP_ROLES,
   createEmptyPermissionMap,
   isAdminRole,
+  permissionMapFromRecords,
   type PermissionAction,
   type PermissionMap,
   type PermissionModule,
 } from "@shared/permissions";
 import { useStore } from "@/lib/store";
 
-export { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES };
+export {
+  ERP_PERMISSION_ACTIONS,
+  ERP_PERMISSION_MODULES,
+  ERP_ROLES,
+  createEmptyPermissionMap,
+  isAdminRole,
+  permissionMapFromRecords,
+};
 export type { PermissionAction, PermissionMap, PermissionModule };
 
 export function hasPermission(
@@ -38,6 +47,8 @@ export function usePermissions() {
 
   return {
     permissionMap,
+    role,
+    isAdmin: isAdminRole(role),
     canView: (moduleName: PermissionModule) => hasPermission(permissionMap, role, moduleName, "view"),
     canCreate: (moduleName: PermissionModule) => hasPermission(permissionMap, role, moduleName, "create"),
     canEdit: (moduleName: PermissionModule) => hasPermission(permissionMap, role, moduleName, "edit"),

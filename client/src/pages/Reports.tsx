@@ -5,9 +5,11 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import * as XLSX from 'xlsx';
+import { usePermissions } from "@/lib/permissions";
 
 export default function Reports() {
   const { pos, vendors, bills, payments, sites, materials, grns } = useStore();
+  const { canCreate } = usePermissions();
 
   const totalPOAmount = pos.reduce((sum, po) => sum + po.totalAmount, 0);
   const totalBilled = bills.reduce((sum, bill) => sum + bill.amount, 0);
@@ -149,10 +151,10 @@ export default function Reports() {
             <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
             <p className="text-sm text-muted-foreground">High-level summary of your procurement lifecycle.</p>
           </div>
-          <Button variant="outline" onClick={handleExportAllData} data-testid="button-export-report">
+          {canCreate("Reports") ? <Button variant="outline" onClick={handleExportAllData} data-testid="button-export-report">
               <Download className="w-4 h-4 mr-2" />
               Export Master Report (Excel)
-          </Button>
+          </Button> : null}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -178,7 +180,7 @@ export default function Reports() {
           <Card className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base font-semibold">Vendor Spend Distribution</CardTitle>
-              <Button variant="ghost" size="sm" onClick={handleExportVendorSpend}><Download className="w-4 h-4"/></Button>
+              {canCreate("Reports") ? <Button variant="ghost" size="sm" onClick={handleExportVendorSpend}><Download className="w-4 h-4"/></Button> : null}
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center">
               <div className="h-[250px] w-full">

@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useRef } from "react";
 import * as XLSX from 'xlsx';
+import { usePermissions } from "@/lib/permissions";
 
 export default function Vendors() {
   const { vendors, addVendor, updateVendor, deleteVendor, addVendors, searchQuery } = useStore();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ name: '', gst: '', contactPerson: '', phone: '', address: '', email: '', openingBalance: 0, openingDate: new Date().toISOString().slice(0, 10) });
@@ -82,9 +84,9 @@ export default function Vendors() {
           </div>
           <div className="flex gap-2">
             <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-import-vendors">
+            {canCreate("Vendors") ? <Button variant="outline" onClick={() => fileInputRef.current?.click()} data-testid="button-import-vendors">
               <Upload className="w-4 h-4 mr-2" /> Import
-            </Button>
+            </Button> : null}
             <Dialog open={open} onOpenChange={(isOpen) => {
                 setOpen(isOpen);
                 if(!isOpen) {
@@ -92,9 +94,9 @@ export default function Vendors() {
                     setFormData({ name: '', gst: '', contactPerson: '', phone: '', address: '', email: '', openingBalance: 0, openingDate: new Date().toISOString().slice(0, 10) });
                 }
             }}>
-              <DialogTrigger asChild>
+              {canCreate("Vendors") ? <DialogTrigger asChild>
                 <Button data-testid="button-add-vendor"><Plus className="w-4 h-4 mr-2" /> Add Vendor</Button>
-              </DialogTrigger>
+              </DialogTrigger> : null}
               <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingId ? 'Edit Vendor' : 'Add New Vendor'}</DialogTitle>
@@ -175,12 +177,12 @@ export default function Vendors() {
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => setViewVendor(vendor)} data-testid={`button-view-vendor-${vendor.id}`}>
                                 <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(vendor)} data-testid={`button-edit-vendor-${vendor.id}`}>
+                            {canEdit("Vendors") ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(vendor)} data-testid={`button-edit-vendor-${vendor.id}`}>
                                 <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteVendor(vendor.id)} data-testid={`button-delete-vendor-${vendor.id}`}>
+                            </Button> : null}
+                            {canDelete("Vendors") ? <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteVendor(vendor.id)} data-testid={`button-delete-vendor-${vendor.id}`}>
                                 <Trash2 className="w-4 h-4" />
-                            </Button>
+                            </Button> : null}
                         </div>
                     </TableCell>
                   </TableRow>
@@ -233,10 +235,10 @@ export default function Vendors() {
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setViewVendor(null); handleOpenEdit(viewVendor); }}>
+                  {canEdit("Vendors") ? <Button variant="outline" onClick={() => { setViewVendor(null); handleOpenEdit(viewVendor); }}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
-                  </Button>
+                  </Button> : null}
                   <Button variant="secondary" onClick={() => setViewVendor(null)}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back

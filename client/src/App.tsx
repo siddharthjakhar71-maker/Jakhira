@@ -127,7 +127,7 @@ function Router() {
       <Route path="/rate-history" component={RateHistory} />
       <Route path="/reports" component={Reports} />
       <Route path="/settings" component={() => <ProtectedRoute moduleName="Settings" component={Settings} />} />
-      <Route path="/users" component={() => <ProtectedRoute moduleName="Users" component={Users} />} />
+      <Route path="/users" component={Users} />
       <Route>
         {() => (
           <AppLayout>

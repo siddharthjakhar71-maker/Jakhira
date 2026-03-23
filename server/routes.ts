@@ -208,12 +208,12 @@ export async function registerRoutes(
   });
 
   // Sites
-  app.get("/api/sites", async (_req, res) => {
+  app.get("/api/sites", requirePermission("Sites", "view"), async (_req, res) => {
     const result = await storage.getSites();
     res.json(result);
   });
 
-  app.post("/api/sites", async (req, res) => {
+  app.post("/api/sites", requirePermission("Sites", "create"), async (req, res) => {
     try {
       const result = await storage.createSite(req.body);
       res.json(result);
@@ -222,7 +222,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/sites/batch", async (req, res) => {
+  app.post("/api/sites/batch", requirePermission("Sites", "create"), async (req, res) => {
     const items: any[] = req.body;
     const results = [];
     for (const item of items) {
@@ -231,7 +231,7 @@ export async function registerRoutes(
     res.json(results);
   });
 
-  app.patch("/api/sites/:id", async (req, res) => {
+  app.patch("/api/sites/:id", requirePermission("Sites", "edit"), async (req, res) => {
     try {
       const result = await storage.updateSite(Number(req.params.id), req.body);
       res.json(result);
@@ -240,23 +240,23 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/sites/:id", async (req, res) => {
+  app.delete("/api/sites/:id", requirePermission("Sites", "delete"), async (req, res) => {
     await storage.deleteSite(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Vendors
-  app.get("/api/vendors", async (_req, res) => {
+  app.get("/api/vendors", requirePermission("Vendors", "view"), async (_req, res) => {
     const result = await storage.getVendors();
     res.json(result);
   });
 
-  app.post("/api/vendors", async (req, res) => {
+  app.post("/api/vendors", requirePermission("Vendors", "create"), async (req, res) => {
     const result = await storage.createVendor(req.body);
     res.json(result);
   });
 
-  app.post("/api/vendors/batch", async (req, res) => {
+  app.post("/api/vendors/batch", requirePermission("Vendors", "create"), async (req, res) => {
     const items: any[] = req.body;
     const results = [];
     for (const item of items) {
@@ -265,28 +265,28 @@ export async function registerRoutes(
     res.json(results);
   });
 
-  app.patch("/api/vendors/:id", async (req, res) => {
+  app.patch("/api/vendors/:id", requirePermission("Vendors", "edit"), async (req, res) => {
     const result = await storage.updateVendor(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/vendors/:id", async (req, res) => {
+  app.delete("/api/vendors/:id", requirePermission("Vendors", "delete"), async (req, res) => {
     await storage.deleteVendor(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Materials
-  app.get("/api/materials", async (_req, res) => {
+  app.get("/api/materials", requirePermission("Materials", "view"), async (_req, res) => {
     const result = await storage.getMaterials();
     res.json(result);
   });
 
-  app.post("/api/materials", async (req, res) => {
+  app.post("/api/materials", requirePermission("Materials", "create"), async (req, res) => {
     const result = await storage.createMaterial(req.body);
     res.json(result);
   });
 
-  app.post("/api/materials/batch", async (req, res) => {
+  app.post("/api/materials/batch", requirePermission("Materials", "create"), async (req, res) => {
     const items: any[] = req.body;
     const results = [];
     for (const item of items) {
@@ -295,54 +295,54 @@ export async function registerRoutes(
     res.json(results);
   });
 
-  app.patch("/api/materials/:id", async (req, res) => {
+  app.patch("/api/materials/:id", requirePermission("Materials", "edit"), async (req, res) => {
     const result = await storage.updateMaterial(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/materials/:id", async (req, res) => {
+  app.delete("/api/materials/:id", requirePermission("Materials", "delete"), async (req, res) => {
     await storage.deleteMaterial(Number(req.params.id));
     res.json({ success: true });
   });
 
   // PO Templates
-  app.get("/api/po-templates", async (_req, res) => {
+  app.get("/api/po-templates", requirePermission("Purchase Orders", "view"), async (_req, res) => {
     const result = await storage.getPOTemplates();
     res.json(result);
   });
 
-  app.post("/api/po-templates", async (req, res) => {
+  app.post("/api/po-templates", requirePermission("Purchase Orders", "edit"), async (req, res) => {
     const result = await storage.createPOTemplate(req.body);
     res.json(result);
   });
 
-  app.patch("/api/po-templates/:id", async (req, res) => {
+  app.patch("/api/po-templates/:id", requirePermission("Purchase Orders", "edit"), async (req, res) => {
     const result = await storage.updatePOTemplate(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/po-templates/:id", async (req, res) => {
+  app.delete("/api/po-templates/:id", requirePermission("Purchase Orders", "delete"), async (req, res) => {
     await storage.deletePOTemplate(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Template Styles
-  app.get("/api/template-styles", async (_req, res) => {
+  app.get("/api/template-styles", requirePermission("Purchase Orders", "view"), async (_req, res) => {
     const result = await storage.getTemplateStyles();
     res.json(result);
   });
 
-  app.post("/api/template-styles", async (req, res) => {
+  app.post("/api/template-styles", requirePermission("Purchase Orders", "edit"), async (req, res) => {
     const result = await storage.createTemplateStyle(req.body);
     res.json(result);
   });
 
-  app.patch("/api/template-styles/:id", async (req, res) => {
+  app.patch("/api/template-styles/:id", requirePermission("Purchase Orders", "edit"), async (req, res) => {
     const result = await storage.updateTemplateStyle(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/template-styles/:id", async (req, res) => {
+  app.delete("/api/template-styles/:id", requirePermission("Purchase Orders", "delete"), async (req, res) => {
     await storage.deleteTemplateStyle(Number(req.params.id));
     res.json({ success: true });
   });
@@ -455,7 +455,7 @@ export async function registerRoutes(
 
 
   // Vendor Ledger
-  app.get("/api/vendor-ledger/:vendorId", async (req, res) => {
+  app.get("/api/vendor-ledger/:vendorId", requirePermission("Reports", "view"), async (req, res) => {
     const { vendorId } = req.params;
     const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
@@ -464,7 +464,7 @@ export async function registerRoutes(
   });
 
 
-  app.get("/api/vendor-statement/:vendorId", async (req, res) => {
+  app.get("/api/vendor-statement/:vendorId", requirePermission("Reports", "view"), async (req, res) => {
     const { vendorId } = req.params;
     const month = typeof req.query.month === "string" ? req.query.month : "";
     if (!month) {
@@ -474,14 +474,14 @@ export async function registerRoutes(
     res.json(result);
   });
 
-  app.get("/api/vendor-payables", async (_req, res) => {
+  app.get("/api/vendor-payables", requirePermission("Reports", "view"), async (_req, res) => {
     const result = await storage.getVendorPayables();
     res.json(result);
   });
 
 
 
-  app.get("/api/cost-analysis", async (req, res) => {
+  app.get("/api/cost-analysis", requirePermission("Reports", "view"), async (req, res) => {
     const siteId = typeof req.query.siteId === "string" ? req.query.siteId : undefined;
     const vendorId = typeof req.query.vendorId === "string" ? req.query.vendorId : undefined;
     const materialId = typeof req.query.materialId === "string" ? req.query.materialId : undefined;
@@ -491,7 +491,7 @@ export async function registerRoutes(
     res.json(result);
   });
 
-  app.post("/api/vendor-rate-import", async (req, res) => {
+  app.post("/api/vendor-rate-import", requirePermission("Reports", "create"), async (req, res) => {
     const { fileDataBase64 } = req.body ?? {};
 
     if (!fileDataBase64 || typeof fileDataBase64 !== "string") {
@@ -553,6 +553,47 @@ export async function registerRoutes(
     res.json(result.map(sanitizeUser));
   });
 
+  app.post("/api/users", requirePermission("Users", "create"), async (req, res) => {
+    const payload = {
+      name: typeof req.body?.name === "string" ? req.body.name.trim() : "",
+      email: typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "",
+      phone: typeof req.body?.phone === "string" ? req.body.phone.trim() : "",
+      password: typeof req.body?.password === "string" ? req.body.password : "",
+      role: typeof req.body?.role === "string" ? req.body.role.trim() : "Viewer",
+      isActive: req.body?.isActive ? 1 : 0,
+    };
+
+    if (!payload.name || !payload.email || !payload.password) {
+      return res.status(400).json({ message: "Name, email, and password are required" });
+    }
+
+    const user = await storage.createUser(payload);
+    res.status(201).json(sanitizeUser(user));
+  });
+
+  app.patch("/api/users/:id", requirePermission("Users", "edit"), async (req, res) => {
+    const userId = Number(req.params.id);
+    const currentUser = await getCurrentUser(req);
+    if (currentUser && currentUser.id === userId && req.body?.isActive === 0) {
+      return res.status(400).json({ message: "You cannot deactivate your own account" });
+    }
+
+    const payload: Record<string, unknown> = {};
+    if (typeof req.body?.name === "string") payload.name = req.body.name.trim();
+    if (typeof req.body?.email === "string") payload.email = req.body.email.trim().toLowerCase();
+    if (typeof req.body?.phone === "string") payload.phone = req.body.phone.trim();
+    if (typeof req.body?.role === "string") payload.role = req.body.role.trim();
+    if (typeof req.body?.password === "string" && req.body.password.trim().length > 0) payload.password = req.body.password;
+    if (req.body?.isActive !== undefined) payload.isActive = req.body.isActive ? 1 : 0;
+
+    const updated = await storage.updateUser(userId, payload);
+    if (!updated) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(sanitizeUser(updated));
+  });
+
   app.get("/api/system-tools/settings", requirePermission("Settings", "view"), async (_req, res) => {
     const result = await storage.getSystemSettings();
     res.json(result);
@@ -573,7 +614,7 @@ export async function registerRoutes(
     res.download(result.filePath, result.fileName);
   });
 
-  app.get("/api/system-logs", async (req, res) => {
+  app.get("/api/system-logs", requirePermission("Settings", "view"), async (req, res) => {
     res.json([]);
   });
 
@@ -588,67 +629,67 @@ export async function registerRoutes(
   });
 
   // Material Issues
-  app.get("/api/material-issues", async (_req, res) => {
+  app.get("/api/material-issues", requirePermission("Stock", "view"), async (_req, res) => {
     const result = await storage.getMaterialIssues();
     res.json(result);
   });
 
-  app.post("/api/material-issues", async (req, res) => {
+  app.post("/api/material-issues", requirePermission("Stock", "create"), async (req, res) => {
     const result = await storage.createMaterialIssue(req.body);
     res.json(result);
   });
 
-  app.patch("/api/material-issues/:id", async (req, res) => {
+  app.patch("/api/material-issues/:id", requirePermission("Stock", "edit"), async (req, res) => {
     const result = await storage.updateMaterialIssue(Number(req.params.id), req.body);
     res.json(result);
   });
 
-  app.delete("/api/material-issues/:id", async (req, res) => {
+  app.delete("/api/material-issues/:id", requirePermission("Stock", "delete"), async (req, res) => {
     await storage.deleteMaterialIssue(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Site Stock
-  app.get("/api/site-stock", async (_req, res) => {
+  app.get("/api/site-stock", requirePermission("Stock", "view"), async (_req, res) => {
     const result = await storage.getSiteStocks();
     res.json(result);
   });
 
-  app.post("/api/site-stock/update", async (req, res) => {
+  app.post("/api/site-stock/update", requirePermission("Stock", "edit"), async (req, res) => {
     const { siteId, materialId, receivedDelta, issuedDelta } = req.body;
     const result = await storage.upsertSiteStock(siteId, materialId, receivedDelta || 0, issuedDelta || 0);
     res.json(result);
   });
 
   // Material Rate History
-  app.get("/api/rate-history", async (_req, res) => {
+  app.get("/api/rate-history", requirePermission("Stock", "view"), async (_req, res) => {
     const result = await storage.getMaterialRateHistoryEntries();
     res.json(result);
   });
 
-  app.post("/api/rate-history", async (req, res) => {
+  app.post("/api/rate-history", requirePermission("Stock", "create"), async (req, res) => {
     const result = await storage.createMaterialRateHistoryEntry(req.body);
     res.json(result);
   });
 
   // Vendor Material Rates
-  app.get("/api/vendor-material-rates", async (_req, res) => {
+  app.get("/api/vendor-material-rates", requirePermission("Stock", "view"), async (_req, res) => {
     const result = await storage.getVendorMaterialRates();
     res.json(result);
   });
 
-  app.get("/api/vendor-material-rates/:vendorId", async (req, res) => {
+  app.get("/api/vendor-material-rates/:vendorId", requirePermission("Stock", "view"), async (req, res) => {
     const result = await storage.getVendorMaterialRatesByVendor(req.params.vendorId);
     res.json(result);
   });
 
-  app.post("/api/vendor-material-rates", async (req, res) => {
+  app.post("/api/vendor-material-rates", requirePermission("Stock", "edit"), async (req, res) => {
     const { vendorId, materialId, rate } = req.body;
     const result = await storage.upsertVendorMaterialRate(vendorId, materialId, rate);
     res.json(result);
   });
 
-  app.delete("/api/vendor-material-rates/:id", async (req, res) => {
+  app.delete("/api/vendor-material-rates/:id", requirePermission("Stock", "delete"), async (req, res) => {
     await storage.deleteVendorMaterialRate(Number(req.params.id));
     res.json({ success: true });
   });
