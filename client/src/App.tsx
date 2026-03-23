@@ -131,9 +131,9 @@ function Router() {
       <Route path="/rate-history" component={RateHistory} />
       <Route path="/reports" component={Reports} />
       <Route path="/profile" component={Profile} />
-      <Route path="/access-control" component={() => <ProtectedRoute moduleName="Users" component={AccessControl} />} />
+      <Route path="/access-control" component={AccessControl} />
       <Route path="/preferences" component={() => <ProtectedRoute moduleName="Settings" component={Preferences} />} />
-      <Route path="/settings" component={Settings} />
+      <Route path="/settings" component={() => <ProtectedRoute moduleName="Settings" component={Settings} />} />
       <Route path="/users" component={Users} />
       <Route path="/administration" component={Administration} />
       <Route>
