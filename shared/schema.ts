@@ -234,6 +234,20 @@ export const poTemplates = sqliteTable("po_templates", {
   config: text("config", { mode: "json" }).notNull().$type<POTemplateConfig>(),
 });
 
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull().default(""),
+  password: text("password").notNull(),
+  role: text("role").notNull().default("Admin"),
+  isActive: integer("is_active").notNull().default(1),
+  createdAt: text("created_at").notNull().default(""),
+  updatedAt: text("updated_at").notNull().default(""),
+}, (table) => ({
+  emailUniqueIdx: uniqueIndex("idx_users_email_unique").on(table.email),
+}));
+
 export const userProfile = sqliteTable("user_profile", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -357,6 +371,7 @@ export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit
 export const insertGrnSchema = createInsertSchema(grns).omit({ id: true });
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertUserProfileSchema = createInsertSchema(userProfile).omit({ id: true });
 export const insertMaterialIssueSchema = createInsertSchema(materialIssues).omit({ id: true });
 export const insertSiteStockSchema = createInsertSchema(siteStock).omit({ id: true });
@@ -384,7 +399,9 @@ export type RolePermissionRecord = typeof rolePermissions.$inferSelect;
 export type InsertRolePermissionRecord = z.infer<typeof insertRolePermissionSchema>;
 export type POTemplate = typeof poTemplates.$inferSelect;
 export type InsertPOTemplate = z.infer<typeof insertPOTemplateSchema>;
+export type User = typeof users.$inferSelect;
 export type UserProfile = typeof userProfile.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type MaterialIssue = typeof materialIssues.$inferSelect;
 export type InsertMaterialIssue = z.infer<typeof insertMaterialIssueSchema>;

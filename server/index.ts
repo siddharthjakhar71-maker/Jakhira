@@ -1,9 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import createMemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { MAX_PROFILE_IMAGE_BYTES } from "./lib/profile-image";
+import type { SessionUser } from "./auth-middleware";
 
+const MemoryStore = createMemoryStore(session);
 const app = express();
 const httpServer = createServer(app);
 
@@ -12,6 +16,29 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+declare module "express-session" {
+  interface SessionData {
+    user?: SessionUser;
+  }
+}
+
+app.use(
+  session({
+    name: "jakhira.sid",
+    secret: process.env.SESSION_SECRET || "jakhira-dev-session-secret",
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 12,
+      secure: process.env.NODE_ENV === "production",
+    },
+    store: new MemoryStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
+  }),
+);
 
 app.use(
   express.json({
@@ -92,9 +119,6 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -102,10 +126,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
