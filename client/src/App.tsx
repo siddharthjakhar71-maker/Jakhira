@@ -23,6 +23,10 @@ import CostAnalysis from "./pages/CostAnalysis";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
+import Profile from "./pages/Profile";
+import Preferences from "./pages/Preferences";
+import AccessControl from "./pages/AccessControl";
+import Administration from "./pages/Administration";
 import Login from "./pages/Login";
 import { Switch, Route, useLocation } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
@@ -126,8 +130,12 @@ function Router() {
       <Route path="/stock" component={StockManagement} />
       <Route path="/rate-history" component={RateHistory} />
       <Route path="/reports" component={Reports} />
-      <Route path="/settings" component={() => <ProtectedRoute moduleName="Settings" component={Settings} />} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/access-control" component={() => <ProtectedRoute moduleName="Users" component={AccessControl} />} />
+      <Route path="/preferences" component={() => <ProtectedRoute moduleName="Settings" component={Preferences} />} />
+      <Route path="/settings" component={Settings} />
       <Route path="/users" component={Users} />
+      <Route path="/administration" component={Administration} />
       <Route>
         {() => (
           <AppLayout>

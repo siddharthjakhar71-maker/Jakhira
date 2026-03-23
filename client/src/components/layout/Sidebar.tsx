@@ -250,17 +250,6 @@ export function Sidebar() {
         items: financeNavigation,
       },
       {
-        key: "admin",
-        title: "Administration",
-        icon: Menu,
-        active: location.startsWith("/settings"),
-        open: location.startsWith("/settings"),
-        setOpen: () => undefined,
-        items: [
-          { name: "Settings", href: "/settings", icon: Menu, module: "Settings" as PermissionModule },
-        ].filter((item) => canView(item.module)),
-      },
-      {
         key: "analytics",
         title: "Analytics",
         icon: BarChart3,
@@ -400,7 +389,7 @@ export function Sidebar() {
 
             <div className="space-y-1.5">
               <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
-                Administration
+                Reports
               </p>
               {reportsNavigation.filter((item) => canView(item.module)).map((item) => (
                 <NavLink
