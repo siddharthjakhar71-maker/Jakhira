@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, queryKeys } from './api';
 
@@ -25,7 +25,7 @@ export type POTemplate = { id: number; name: string; isDefault: string; config: 
 export type LayoutBlock = { id: string; label: string; row: number; col: number; colSpan: number; visible: boolean };
 export type TemplateStyleConfig = { blocks: LayoutBlock[]; linkedTemplateId?: number };
 export type TemplateStyle = { id: number; name: string; isDefault: string; config: TemplateStyleConfig };
-export type UserProfile = { id: number; name: string; email: string; phone: string; role: string; company: string; avatarUrl?: string; password?: string };
+export type UserProfile = { id: number; name: string; email: string; phone: string; role: string; isActive?: number; createdAt?: string; updatedAt?: string; company: string; avatarUrl?: string; password?: string };
 export type SystemSettings = { id: number; backupEnabled: number; backupFrequency: string; backupLocation: string; updatedAt: string };
 
 export type MaterialIssueItem = { materialId: string; qty: number };
@@ -39,7 +39,7 @@ export type VendorMaterialRateEntry = { id: number; vendorId: string; materialId
 
 
 type StoreContextType = {
-  isAuthenticated: boolean; login: (email: string, password: string) => Promise<boolean>; logout: () => void;
+  isAuthenticated: boolean; isAuthLoading: boolean; login: (email: string, password: string) => Promise<boolean>; logout: () => Promise<void>;
   searchQuery: string; setSearchQuery: (q: string) => void;
   userProfile: UserProfile; updateUserProfile: (p: Partial<UserProfile>) => Promise<UserProfile>; changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   systemSettings: SystemSettings | null;
@@ -67,16 +67,24 @@ const defaultProfile: UserProfile = {
   email: 'siddharthjakhar71@gmail.com',
   phone: '+91 88004 47427',
   role: 'Admin',
+  isActive: 1,
   company: 'JAKHIRA',
   avatarUrl: '',
 };
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('app_auth') === 'true';
-  });
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
+
+  const meQuery = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: api.me,
+    retry: false,
+    staleTime: 0,
+  });
+
+  const isAuthenticated = Boolean(meQuery.data?.user);
+  const isAuthLoading = meQuery.isLoading;
 
   const sitesQuery = useQuery({ queryKey: queryKeys.sites, queryFn: api.getSites, enabled: isAuthenticated });
   const vendorsQuery = useQuery({ queryKey: queryKeys.vendors, queryFn: api.getVendors, enabled: isAuthenticated });
@@ -87,7 +95,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const grnsQuery = useQuery({ queryKey: queryKeys.grns, queryFn: api.getGRNs, enabled: isAuthenticated });
   const billsQuery = useQuery({ queryKey: queryKeys.bills, queryFn: api.getBills, enabled: isAuthenticated });
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: api.getPayments, enabled: isAuthenticated });
-  const profileQuery = useQuery({ queryKey: queryKeys.profile, queryFn: api.getProfile, enabled: isAuthenticated, select: (data: any) => data.profile });
+  const profileQuery = useQuery({ queryKey: queryKeys.profile, queryFn: api.getProfile, enabled: isAuthenticated, select: (data: any) => data.profile ?? data.user });
   const materialIssuesQuery = useQuery({ queryKey: queryKeys.materialIssues, queryFn: api.getMaterialIssues, enabled: isAuthenticated });
   const siteStockQuery = useQuery({ queryKey: queryKeys.siteStock, queryFn: api.getSiteStocks, enabled: isAuthenticated });
   const rateHistoryQuery = useQuery({ queryKey: queryKeys.rateHistory, queryFn: api.getRateHistory, enabled: isAuthenticated });
@@ -103,7 +111,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const grns: GRN[] = grnsQuery.data || [];
   const bills: Bill[] = billsQuery.data || [];
   const payments: Payment[] = paymentsQuery.data || [];
-  const userProfile: UserProfile = profileQuery.data || defaultProfile;
+  const userProfile: UserProfile = useMemo(() => ({ ...defaultProfile, ...(profileQuery.data || meQuery.data?.user || {}) }), [meQuery.data?.user, profileQuery.data]);
   const materialIssues: MaterialIssue[] = materialIssuesQuery.data || [];
   const siteStocks: SiteStockEntry[] = siteStockQuery.data || [];
   const rateHistory: RateHistoryEntry[] = rateHistoryQuery.data || [];
@@ -116,9 +124,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const result = await api.login(email, password);
       if (result.success) {
-        setIsAuthenticated(true);
-        sessionStorage.setItem('app_auth', 'true');
-        if (result.profile?.id) sessionStorage.setItem('app_user_id', String(result.profile.id));
+        await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.profile });
         return true;
       }
       return false;
@@ -127,11 +134,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    sessionStorage.removeItem('app_auth');
-    sessionStorage.removeItem('app_user_id');
-    queryClient.clear();
+  const logout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // no-op: clear local app state even if the server session is already gone.
+    }
+    queryClient.setQueryData(['auth', 'me'], { user: null });
+    queryClient.removeQueries({ queryKey: queryKeys.profile });
+    queryClient.removeQueries({ queryKey: queryKeys.sites });
+    queryClient.removeQueries({ queryKey: queryKeys.vendors });
+    queryClient.removeQueries({ queryKey: queryKeys.materials });
+    queryClient.removeQueries({ queryKey: queryKeys.pos });
+    queryClient.removeQueries({ queryKey: queryKeys.grns });
+    queryClient.removeQueries({ queryKey: queryKeys.bills });
+    queryClient.removeQueries({ queryKey: queryKeys.payments });
   };
 
   const updateUserProfile = async (p: Partial<UserProfile>): Promise<UserProfile> => {
@@ -352,6 +369,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isAuthenticated, login, logout,
       searchQuery, setSearchQuery,
       userProfile, updateUserProfile, changePassword,
+      isAuthLoading,
       systemSettings,
       sites, addSite, updateSite, deleteSite, addSites,
       vendors, addVendor, updateVendor, deleteVendor, addVendors,

@@ -1,41 +1,52 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
 import { PERMISSION_ROUTE_MAP } from "@shared/permissions";
+import { getSessionUser, requireAuth } from "./auth-middleware";
+import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
 
-  const getCurrentUserId = (req: any) => Number(req.headers["x-user-id"] || 1);
-
-  const getCurrentUser = async (req: any) => {
-    const profiles = await storage.getUserProfiles();
-    return profiles.find((profile) => profile.id === getCurrentUserId(req)) || profiles[0];
-  };
-
-  const requireAuth = async (_req: any, res: any): Promise<boolean> => {
-    await storage.ensureDefaultUserProfile();
-    const profiles = await storage.getUserProfiles();
-    if (!profiles.length) {
-      res.status(401).json({ message: "Unauthorized" });
-      return false;
+  const getCurrentUser = async (req: Request) => {
+    const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return undefined;
     }
-    return true;
+
+    return storage.getUserById(sessionUser.id);
   };
 
-  const requirePermission = async (req: any, res: any, action: string): Promise<boolean> => {
-    if (!(await requireAuth(req, res))) return false;
-    const moduleName = PERMISSION_ROUTE_MAP[req.path as keyof typeof PERMISSION_ROUTE_MAP];
-    if (!moduleName) return true;
+  const sanitizeUser = (user: Awaited<ReturnType<typeof storage.getUserById>>) => {
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+  };
+
+  const requirePermission = async (req: Request, res: any, action: string): Promise<boolean> => {
     const user = await getCurrentUser(req);
     if (!user) {
       res.status(401).json({ message: "Unauthorized" });
       return false;
     }
+
+    const moduleName = PERMISSION_ROUTE_MAP[req.path as keyof typeof PERMISSION_ROUTE_MAP];
+    if (!moduleName) return true;
     const allowed = await storage.userHasPermission(user.role, moduleName, action);
     if (!allowed) {
       res.status(403).json({ message: `Permission denied: ${moduleName}.${action}` });
@@ -91,51 +102,64 @@ export async function registerRoutes(
 
   // Auth
   app.post("/api/auth/login", async (req, res) => {
-    const { email, password } = req.body;
-    await storage.ensureDefaultUserProfile();
-    const profiles = await storage.getUserProfiles();
-    const profile = profiles.find((row) => row.email === email);
-    if (!profile || profile.password !== password) {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, message: "Email and password are required" });
+    }
+
+    await storage.ensureDefaultAdminUser();
+    const user = await storage.getUserByEmail(email);
+
+    if (!user || !user.isActive || !verifyPassword(password, user.password)) {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    if (profile) {
-      await storage.updateUserProfile(profile.id, {
-        company: "JAKHIRA",
-      });
+    if (!isPasswordHashed(user.password)) {
+      await storage.updateUser(user.id, { password: hashPassword(password) });
     }
 
-    return res.json({
-      success: true,
-      profile: {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        role: profile.role,
-        company: "JAKHIRA",
-        avatarUrl: profile.avatarUrl,
-      },
+    req.session.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    await new Promise<void>((resolve, reject) => {
+      req.session.save((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+
+    return res.json({ success: true, user: sanitizeUser(user) });
+  });
+
+  app.use("/api", (req, res, next) => requireAuth()(req, res, next));
+
+  app.post("/api/auth/logout", async (req, res) => {
+    req.session.destroy((error) => {
+      if (error) {
+        return res.status(500).json({ message: "Failed to logout" });
+      }
+
+      res.clearCookie("jakhira.sid");
+      return res.json({ success: true });
     });
   });
 
+  app.get("/api/auth/me", async (req, res) => {
+    const user = await getCurrentUser(req);
+    return res.json({ user: sanitizeUser(user) });
+  });
+
   app.get("/api/auth/profile", async (req, res) => {
-    await storage.ensureDefaultUserProfile();
-    const profile = await getCurrentUser(req);
-    if (!profile) {
-      return res.json({ profile: null });
-    }
-    return res.json({
-      profile: {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        role: profile.role,
-        company: profile.company,
-        avatarUrl: profile.avatarUrl,
-      },
-    });
+    const user = await getCurrentUser(req);
+    return res.json({ profile: sanitizeUser(user) });
   });
 
   app.patch("/api/auth/profile", async (req, res) => {
@@ -145,55 +169,42 @@ export async function registerRoutes(
     }
 
     const payload: Record<string, unknown> = {};
-    if (typeof req.body?.name === "string") payload.name = req.body.name;
-    if (typeof req.body?.email === "string") payload.email = req.body.email;
-    if (typeof req.body?.phone === "string") payload.phone = req.body.phone;
-    if (typeof req.body?.role === "string") payload.role = req.body.role;
-    if (typeof req.body?.company === "string") payload.company = req.body.company;
-    if (typeof req.body?.avatarUrl === "string") {
-      if (req.body.avatarUrl.trim().length > 0) {
-        try {
-          assertProfileImageSize(req.body.avatarUrl);
-        } catch (error) {
-          return res.status(413).json({
-            message: error instanceof Error ? error.message : "Invalid profile image.",
-            profileImage: getProfileImageConfig(),
-            recommendedUploadMode: "multipart/form-data",
-          });
-        }
+    if (typeof req.body?.name === "string") payload.name = req.body.name.trim();
+    if (typeof req.body?.email === "string") payload.email = req.body.email.trim().toLowerCase();
+    if (typeof req.body?.phone === "string") payload.phone = req.body.phone.trim();
+    if (typeof req.body?.role === "string") payload.role = req.body.role.trim();
+    if (typeof req.body?.avatarUrl === "string" && req.body.avatarUrl.trim().length > 0) {
+      try {
+        assertProfileImageSize(req.body.avatarUrl);
+      } catch (error) {
+        return res.status(413).json({
+          message: error instanceof Error ? error.message : "Invalid profile image.",
+          profileImage: getProfileImageConfig(),
+          recommendedUploadMode: "multipart/form-data",
+        });
       }
-
-      payload.avatarUrl = req.body.avatarUrl;
     }
 
-    const updated = await storage.updateUserProfile(currentUser.id, payload);
+    const updated = await storage.updateUser(currentUser.id, payload);
     if (!updated) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
-    return res.json({
-      profile: {
-        id: updated.id,
-        name: updated.name,
-        email: updated.email,
-        phone: updated.phone,
-        role: updated.role,
-        company: updated.company,
-        avatarUrl: updated.avatarUrl,
-      },
-    });
+    return res.json({ profile: sanitizeUser(updated) });
   });
 
   app.post("/api/auth/change-password", async (req, res) => {
-    const { currentPassword, newPassword } = req.body;
-    const profile = await getCurrentUser(req);
-    if (!profile) {
+    const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+    const newPassword = typeof req.body?.newPassword === "string" ? req.body.newPassword : "";
+    const user = await getCurrentUser(req);
+
+    if (!user) {
       return res.status(404).json({ message: "Profile not found" });
     }
-    if (profile.password !== currentPassword) {
+    if (!verifyPassword(currentPassword, user.password)) {
       return res.status(400).json({ message: "Current password is incorrect" });
     }
-    await storage.updateUserProfile(profile.id, { password: newPassword });
+    await storage.updateUser(user.id, { password: hashPassword(newPassword) });
     return res.json({ success: true, message: "Password changed successfully" });
   });
 
@@ -540,14 +551,12 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/system-tools/settings", async (req, res) => {
-    if (!(await requireAuth(req, res))) return;
+  app.get("/api/system-tools/settings", async (_req, res) => {
     const result = await storage.getSystemSettings();
     res.json(result);
   });
 
   app.patch("/api/system-tools/settings", async (req, res) => {
-    if (!(await requireAuth(req, res))) return;
     const result = await storage.updateSystemSettings(req.body);
     res.json(result);
   });
@@ -563,14 +572,13 @@ export async function registerRoutes(
   });
 
   app.get("/api/system-logs", async (req, res) => {
-    if (!(await requireAuth(req, res))) return;
     res.json([]);
   });
 
   app.post("/api/system-tools/reset-demo-data", async (req, res) => {
     const { adminPassword } = req.body;
     const currentUser = await getCurrentUser(req);
-    if (!currentUser || currentUser.password !== adminPassword) {
+    if (!currentUser || !verifyPassword(adminPassword, currentUser.password)) {
       return res.status(400).json({ message: "Admin password confirmation failed" });
     }
     await storage.resetDemoData();
