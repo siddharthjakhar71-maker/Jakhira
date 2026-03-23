@@ -10,11 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { usePermissions } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 
 export default function Payments() {
   const [, setLocation] = useLocation();
   const { payments, bills, vendors, sites, grns, pos, materials, addPayment, updatePayment, deletePayment, searchQuery } = useStore();
+  const { canCreate, canEdit, canDelete, canApprove } = usePermissions();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [viewingPaymentId, setViewingPaymentId] = useState<number | null>(null);
@@ -101,7 +103,7 @@ export default function Payments() {
                   setFormData({ date: new Date().toISOString().split('T')[0], mode: 'Bank Transfer', reference: '' });
               }
           }}>
-            <Button data-testid="button-log-payment" onClick={() => setLocation("/payments/create")}><Plus className="w-4 h-4 mr-2" /> Log Payment</Button>
+            {canCreate("Payments") ? <Button data-testid="button-log-payment" onClick={() => setLocation("/payments/create")}><Plus className="w-4 h-4 mr-2" /> Log Payment</Button> : null}
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingId ? 'Edit Payment' : 'Log Payment'}</DialogTitle>
@@ -231,11 +233,11 @@ export default function Payments() {
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setViewingPaymentId(null); handleOpenEdit(viewingPayment); }}>
+                  <Button variant="outline" onClick={() => { setViewingPaymentId(null); handleOpenEdit(viewingPayment); }} disabled={!canEdit("Payments")}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
-                  <Button variant="secondary" onClick={() => setViewingPaymentId(null)}>
+                  {canApprove("Payments") ? <Button variant="outline">Approve</Button> : null}<Button variant="secondary" onClick={() => setViewingPaymentId(null)}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back
                   </Button>
@@ -283,10 +285,10 @@ export default function Payments() {
                                 <span className="text-xs text-muted-foreground">Locked</span>
                               ) : (
                                 <>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(pay)}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleOpenEdit(pay)} disabled={!canEdit("Payments")}>
                                       <Edit className="w-4 h-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deletePayment(pay.id)}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deletePayment(pay.id)} disabled={!canDelete("Payments")}>
                                       <Trash2 className="w-4 h-4" />
                                   </Button>
                                 </>

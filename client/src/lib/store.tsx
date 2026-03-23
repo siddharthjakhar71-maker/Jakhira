@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, queryKeys } from './api';
+import { api, queryKeys, type AuthPermissionsResponse } from './api';
+import { createEmptyPermissionMap, type PermissionMap } from '@/lib/permissions';
 
 export type Site = { id: number; siteName: string; projectName: string; siteCode: string; poPrefix?: string; billingCode?: string; address: string; city: string; state: string; pincode: string; contactPerson: string; phone: string; status: string; createdAt?: string; name: string; location: string; billingName?: string; billTo?: string; shipTo?: string };
 export type Vendor = { id: number; name: string; gst: string | null; contactPerson: string | null; phone: string | null; address: string | null; email: string | null; openingBalance: number; openingDate: string; };
@@ -41,7 +42,7 @@ export type VendorMaterialRateEntry = { id: number; vendorId: string; materialId
 type StoreContextType = {
   isAuthenticated: boolean; isAuthLoading: boolean; login: (email: string, password: string) => Promise<boolean>; logout: () => Promise<void>;
   searchQuery: string; setSearchQuery: (q: string) => void;
-  userProfile: UserProfile; updateUserProfile: (p: Partial<UserProfile>) => Promise<UserProfile>; changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  userProfile: UserProfile; permissionMap: PermissionMap; updateUserProfile: (p: Partial<UserProfile>) => Promise<UserProfile>; changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
   systemSettings: SystemSettings | null;
   sites: Site[]; addSite: (s: Omit<Site, 'id'>) => void; updateSite: (id: number, s: Partial<Site>) => void; deleteSite: (id: number) => void; addSites: (s: Omit<Site, 'id'>[]) => void;
   vendors: Vendor[]; addVendor: (v: Omit<Vendor, 'id'>) => void; updateVendor: (id: number, v: Partial<Vendor>) => void; deleteVendor: (id: number) => void; addVendors: (v: Omit<Vendor, 'id'>[]) => void;
@@ -96,6 +97,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const billsQuery = useQuery({ queryKey: queryKeys.bills, queryFn: api.getBills, enabled: isAuthenticated });
   const paymentsQuery = useQuery({ queryKey: queryKeys.payments, queryFn: api.getPayments, enabled: isAuthenticated });
   const profileQuery = useQuery({ queryKey: queryKeys.profile, queryFn: api.getProfile, enabled: isAuthenticated, select: (data: any) => data.profile ?? data.user });
+  const permissionsQuery = useQuery<AuthPermissionsResponse>({ queryKey: ['auth', 'permissions'], queryFn: api.getPermissions, enabled: isAuthenticated });
   const materialIssuesQuery = useQuery({ queryKey: queryKeys.materialIssues, queryFn: api.getMaterialIssues, enabled: isAuthenticated });
   const siteStockQuery = useQuery({ queryKey: queryKeys.siteStock, queryFn: api.getSiteStocks, enabled: isAuthenticated });
   const rateHistoryQuery = useQuery({ queryKey: queryKeys.rateHistory, queryFn: api.getRateHistory, enabled: isAuthenticated });
@@ -112,6 +114,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const bills: Bill[] = billsQuery.data || [];
   const payments: Payment[] = paymentsQuery.data || [];
   const userProfile: UserProfile = useMemo(() => ({ ...defaultProfile, ...(profileQuery.data || meQuery.data?.user || {}) }), [meQuery.data?.user, profileQuery.data]);
+  const permissionMap: PermissionMap = useMemo(() => permissionsQuery.data?.permissionMap || createEmptyPermissionMap(), [permissionsQuery.data?.permissionMap]);
   const materialIssues: MaterialIssue[] = materialIssuesQuery.data || [];
   const siteStocks: SiteStockEntry[] = siteStockQuery.data || [];
   const rateHistory: RateHistoryEntry[] = rateHistoryQuery.data || [];
@@ -125,6 +128,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const result = await api.login(email, password);
       if (result.success) {
         await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+        await queryClient.invalidateQueries({ queryKey: ['auth', 'permissions'] });
         await queryClient.invalidateQueries({ queryKey: queryKeys.profile });
         return true;
       }
@@ -141,6 +145,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // no-op: clear local app state even if the server session is already gone.
     }
     queryClient.setQueryData(['auth', 'me'], { user: null });
+    queryClient.removeQueries({ queryKey: ['auth', 'permissions'] });
     queryClient.removeQueries({ queryKey: queryKeys.profile });
     queryClient.removeQueries({ queryKey: queryKeys.sites });
     queryClient.removeQueries({ queryKey: queryKeys.vendors });
@@ -368,7 +373,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     <StoreContext.Provider value={{
       isAuthenticated, login, logout,
       searchQuery, setSearchQuery,
-      userProfile, updateUserProfile, changePassword,
+      userProfile, permissionMap, updateUserProfile, changePassword,
       isAuthLoading,
       systemSettings,
       sites, addSite, updateSite, deleteSite, addSites,

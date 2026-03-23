@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useUserStore } from "@/stores/user-store";
+import { usePermissions, type PermissionModule } from "@/lib/permissions";
 
 const SIDEBAR_TOGGLE_EVENT = "erp:toggle-sidebar";
 
@@ -31,6 +32,7 @@ type NavItem = {
   href: string;
   icon: React.ElementType;
   badge?: string;
+  module: PermissionModule;
 };
 
 type NavSectionProps = {
@@ -43,37 +45,37 @@ type NavSectionProps = {
 };
 
 const dashboardNavigation: NavItem[] = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, module: "Dashboard" },
 ];
 const siteNavigation: NavItem[] = [
-  { name: "Sites", href: "/sites", icon: MapPinned },
+  { name: "Sites", href: "/sites", icon: MapPinned, module: "Sites" },
 ];
 const purchaseNavigation: NavItem[] = [
-  { name: "Purchase Orders", href: "/pos", icon: ShoppingCart },
-  { name: "GRN", href: "/grn", icon: Truck },
-  { name: "Bills", href: "/bills", icon: FileText },
-  { name: "Payments", href: "/payments", icon: Wallet },
+  { name: "Purchase Orders", href: "/pos", icon: ShoppingCart, module: "Purchase Orders" },
+  { name: "GRN", href: "/grn", icon: Truck, module: "GRN" },
+  { name: "Bills", href: "/bills", icon: FileText, module: "Bills" },
+  { name: "Payments", href: "/payments", icon: Wallet, module: "Payments" },
 ];
 const vendorNavigation: NavItem[] = [
-  { name: "Vendor List", href: "/vendors", icon: Users },
-  { name: "Vendor Rate List", href: "/vendor-rate-list", icon: BookOpen },
-  { name: "Rate Comparison", href: "/rate-comparison", icon: BarChart3 },
+  { name: "Vendor List", href: "/vendors", icon: Users, module: "Vendors" },
+  { name: "Vendor Rate List", href: "/vendor-rate-list", icon: BookOpen, module: "Vendors" },
+  { name: "Rate Comparison", href: "/rate-comparison", icon: BarChart3, module: "Vendors" },
 ];
 const inventoryNavigation: NavItem[] = [
-  { name: "Materials", href: "/materials", icon: Package },
-  { name: "Stock Management", href: "/stock", icon: Boxes },
-  { name: "Rate History", href: "/rate-history", icon: BookOpen },
+  { name: "Materials", href: "/materials", icon: Package, module: "Materials" },
+  { name: "Stock Management", href: "/stock", icon: Boxes, module: "Stock" },
+  { name: "Rate History", href: "/rate-history", icon: BookOpen, module: "Stock" },
 ];
 const financeNavigation: NavItem[] = [
-  { name: "Vendor Ledger", href: "/vendor-ledger", icon: BookOpen },
-  { name: "Vendor Statement", href: "/vendor-statement", icon: FileText },
-  { name: "Vendor Payables", href: "/vendor-payables", icon: Wallet },
+  { name: "Vendor Ledger", href: "/vendor-ledger", icon: BookOpen, module: "Reports" },
+  { name: "Vendor Statement", href: "/vendor-statement", icon: FileText, module: "Reports" },
+  { name: "Vendor Payables", href: "/vendor-payables", icon: Wallet, module: "Reports" },
 ];
 const analyticsNavigation: NavItem[] = [
-  { name: "Cost Analysis", href: "/cost-analysis", icon: BarChart3 },
+  { name: "Cost Analysis", href: "/cost-analysis", icon: BarChart3, module: "Reports" },
 ];
 const reportsNavigation: NavItem[] = [
-  { name: "Reports", href: "/reports", icon: PieChart },
+  { name: "Reports", href: "/reports", icon: PieChart, module: "Reports" },
 ];
 
 function NavLink({
@@ -155,6 +157,7 @@ function NavSection({
 export function Sidebar() {
   const [location] = useLocation();
   const { userProfile } = useStore();
+  const { canView } = usePermissions();
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -247,6 +250,18 @@ export function Sidebar() {
         items: financeNavigation,
       },
       {
+        key: "admin",
+        title: "Administration",
+        icon: Users,
+        active: location === "/users" || location === "/settings",
+        open: location === "/users" || location === "/settings",
+        setOpen: () => undefined,
+        items: [
+          { name: "Users", href: "/users", icon: Users, module: "Users" as PermissionModule },
+          { name: "Settings", href: "/settings", icon: Menu, module: "Settings" as PermissionModule },
+        ].filter((item) => canView(item.module)),
+      },
+      {
         key: "analytics",
         title: "Analytics",
         icon: BarChart3,
@@ -255,7 +270,7 @@ export function Sidebar() {
         setOpen: setAnalyticsOpen,
         items: analyticsNavigation,
       },
-    ],
+    ].map((section) => ({ ...section, items: section.items.filter((item) => canView(item.module)) })).filter((section) => section.items.length > 0),
     [
       purchaseActive,
       purchaseOpen,
@@ -267,6 +282,7 @@ export function Sidebar() {
       financeOpen,
       analyticsActive,
       analyticsOpen,
+      canView,
     ],
   );
 
@@ -387,7 +403,7 @@ export function Sidebar() {
               <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                 Administration
               </p>
-              {reportsNavigation.map((item) => (
+              {reportsNavigation.filter((item) => canView(item.module)).map((item) => (
                 <NavLink
                   key={item.name}
                   item={item}

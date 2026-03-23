@@ -36,6 +36,7 @@ import { api } from "@/lib/api";
 import { MAX_PROFILE_IMAGE_BYTES, formatFileSize } from "@/lib/profile/profile-image";
 import POTemplateDesigner from "./POTemplateDesigner";
 import TemplateStyleDesigner from "./TemplateStyleDesigner";
+import { usePermissions } from "@/lib/permissions";
 
 type SettingsTab =
   | "general"
@@ -53,6 +54,7 @@ export default function Settings() {
     systemSettings,
   } = useStore();
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme();
+  const { canApprove, canEdit, canDelete } = usePermissions();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [profileData, setProfileData] = useState(userProfile);
@@ -176,6 +178,7 @@ export default function Settings() {
   const handleResetDemoData = async () => {
     if (!window.confirm("This will permanently delete all operational data. Continue?")) return;
     try {
+      if (!canDelete("Settings")) return;
       await api.resetDemoData(resetPasswordConfirm);
       toast({ title: "Demo data reset complete" });
       setResetPasswordConfirm("");
@@ -186,6 +189,7 @@ export default function Settings() {
 
   const handleBackupSave = async () => {
     try {
+      if (!canEdit("Settings")) return;
       await api.updateSystemSettings({
         backupEnabled: Number(backupForm.backupEnabled),
         backupFrequency: backupForm.backupFrequency,
@@ -215,6 +219,7 @@ export default function Settings() {
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
+                  disabled={tab.key === "system-tools" ? !canEdit("Settings") : false}
                   onClick={() => setActiveTab(tab.key)}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm",
