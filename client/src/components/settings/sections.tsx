@@ -256,10 +256,26 @@ export function AccessControlSection() {
   );
 }
 
-export function PreferencesSettingsSection() {
+export function ThemeSettingsSection() {
+  const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Theme</CardTitle>
+        <CardDescription>Compact theme and brand options remain available without affecting business data.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-2"><Label>Theme</Label><Select value={theme} onValueChange={(value: AppTheme) => setTheme(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="light">Light</SelectItem><SelectItem value="dark">Dark</SelectItem><SelectItem value="system">System</SelectItem></SelectContent></Select></div>
+        <div className="grid gap-2"><Label>Primary Color</Label><div className="flex items-center gap-3"><Input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="h-10 w-16 p-1" /><Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="font-mono" /></div><div className="flex flex-wrap gap-2">{presetPrimaryColors.map((color) => <button key={color} type="button" className={cn("h-7 w-7 rounded-full border-2", primaryColor === color ? "border-foreground" : "border-border")} style={{ backgroundColor: color }} onClick={() => setPrimaryColor(color)} />)}</div></div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function SystemPreferencesSection() {
   const { systemSettings } = useStore();
   const { canView, canEdit, canDelete, canApprove } = usePermissions();
-  const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme();
   const { toast } = useToast();
   const [backupForm, setBackupForm] = useState({ backupEnabled: "0", backupFrequency: "weekly", backupLocation: "/backups" });
 
@@ -287,22 +303,10 @@ export function PreferencesSettingsSection() {
   };
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[.8fr_1.2fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>Appearance</CardTitle>
-          <CardDescription>Compact theme and brand options.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2"><Label>Theme</Label><Select value={theme} onValueChange={(value: AppTheme) => setTheme(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="light">Light</SelectItem><SelectItem value="dark">Dark</SelectItem><SelectItem value="system">System</SelectItem></SelectContent></Select></div>
-          <div className="grid gap-2"><Label>Primary Color</Label><div className="flex items-center gap-3"><Input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="h-10 w-16 p-1" /><Input value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="font-mono" /></div><div className="flex flex-wrap gap-2">{presetPrimaryColors.map((color) => <button key={color} type="button" className={cn("h-7 w-7 rounded-full border-2", primaryColor === color ? "border-foreground" : "border-border")} style={{ backgroundColor: color }} onClick={() => setPrimaryColor(color)} />)}</div></div>
-        </CardContent>
-      </Card>
-
-      <Card>
+    <Card>
         <CardHeader>
           <CardTitle>System Preferences</CardTitle>
-          <CardDescription>Backup controls remain available under Preferences.</CardDescription>
+          <CardDescription>Keep backup controls and maintenance actions available under Settings.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
@@ -319,6 +323,5 @@ export function PreferencesSettingsSection() {
           </div>
         </CardContent>
       </Card>
-    </div>
   );
 }

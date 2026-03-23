@@ -12,7 +12,6 @@ import {
   FileText,
   LogOut,
   Settings2,
-  ShieldCheck,
   UserCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +60,11 @@ const pageTitles: Record<string, { title: string; description: string }> = {
     title: "Payments",
     description: "Track outgoing payments and settlement status.",
   },
+  "/settings": {
+    title: "Settings",
+    description:
+      "Manage profile, PO templates, PO layouts, theme, and admin-only access control from one place.",
+  },
 };
 
 const quickCreateItems = [
@@ -84,7 +88,7 @@ export function Header() {
   } = useStore();
   const { resolvedTheme, setTheme } = useTheme();
   const [location] = useLocation();
-  const { canCreate, canView, isAdmin } = usePermissions();
+  const { canCreate, canView } = usePermissions();
 
   const unpaidBills = bills.filter((b) => b.status === "Unpaid");
   const pendingPOs = pos.filter((p) => p.status === "Pending");
@@ -130,7 +134,9 @@ export function Header() {
     })),
   ];
 
-  const pageMeta = pageTitles[location] ?? {
+  const pathname = location.split("?")[0] || location;
+
+  const pageMeta = pageTitles[pathname] ?? {
     title: "Jakhira ERP",
     description:
       "Operate procurement and inventory workflows inside a modern ERP shell.",
@@ -269,6 +275,15 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {canView("Settings") ? (
+              <Link href="/settings">
+                <Button variant="outline" className="erp-header-button-secondary">
+                  <Settings2 className="h-4 w-4" />
+                  Settings
+                </Button>
+              </Link>
+            ) : null}
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -308,19 +323,11 @@ export function Header() {
                     My Profile
                   </DropdownMenuItem>
                 </Link>
-                {isAdmin && canView("Users") ? (
-                  <Link href="/access-control">
-                    <DropdownMenuItem className="gap-2">
-                      <ShieldCheck className="h-4 w-4" />
-                      Access Control
-                    </DropdownMenuItem>
-                  </Link>
-                ) : null}
                 {canView("Settings") ? (
-                  <Link href="/preferences">
+                  <Link href="/settings">
                     <DropdownMenuItem className="gap-2">
                       <Settings2 className="h-4 w-4" />
-                      Preferences
+                      Settings
                     </DropdownMenuItem>
                   </Link>
                 ) : null}
