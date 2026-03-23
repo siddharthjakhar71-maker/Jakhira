@@ -59,9 +59,9 @@ export type CostAnalysisResponse = {
 };
 
 async function fetchJSON(url: string, options?: RequestInit) {
-  const userId = sessionStorage.getItem("app_user_id") || "1";
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", "x-user-id": userId, ...(options?.headers || {}) },
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
     ...options,
   });
   if (!res.ok) {
@@ -73,8 +73,7 @@ async function fetchJSON(url: string, options?: RequestInit) {
 
 
 async function fetchFormDataJSON(url: string, options?: RequestInit) {
-  const userId = sessionStorage.getItem("app_user_id") || "1";
-  const res = await fetch(url, { ...options, headers: { "x-user-id": userId, ...((options && options.headers) || {}) } });
+  const res = await fetch(url, { ...options, credentials: "include", headers: { ...((options && options.headers) || {}) } });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(error.message || "Request failed");
@@ -85,6 +84,8 @@ async function fetchFormDataJSON(url: string, options?: RequestInit) {
 export const api = {
   login: (email: string, password: string) =>
     fetchJSON("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  logout: () => fetchJSON("/api/auth/logout", { method: "POST" }),
+  me: () => fetchJSON("/api/auth/me"),
   getProfile: () => fetchJSON("/api/auth/profile"),
   updateProfile: (data: any) =>
     fetchJSON("/api/auth/profile", { method: "PATCH", body: JSON.stringify(data) }),

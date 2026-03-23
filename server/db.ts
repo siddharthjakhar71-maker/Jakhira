@@ -4,6 +4,7 @@ import * as schema from "@shared/schema";
 import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES } from "@shared/permissions";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
+import { hashPassword, isPasswordHashed } from "./auth";
 
 function getDataRoot(): string {
   if (process.env.APP_DATA_DIR) {
@@ -164,6 +165,17 @@ CREATE TABLE IF NOT EXISTS vendors (
     is_default TEXT NOT NULL DEFAULT 'false',
     config TEXT NOT NULL DEFAULT '{}'
   );
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL DEFAULT '',
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'Admin',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT ''
+  );
   CREATE TABLE IF NOT EXISTS user_profile (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -280,6 +292,23 @@ if (!siteColumns.some((column) => column.name === "contact_person")) {
 }
 if (!siteColumns.some((column) => column.name === "phone")) {
   sqlite.exec("ALTER TABLE sites ADD COLUMN phone TEXT NOT NULL DEFAULT '';");
+}
+
+const usersColumns = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+if (!usersColumns.some((column) => column.name === "phone")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';");
+}
+if (!usersColumns.some((column) => column.name === "role")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'Admin';");
+}
+if (!usersColumns.some((column) => column.name === "is_active")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;");
+}
+if (!usersColumns.some((column) => column.name === "created_at")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN created_at TEXT NOT NULL DEFAULT '';");
+}
+if (!usersColumns.some((column) => column.name === "updated_at")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN updated_at TEXT NOT NULL DEFAULT '';");
 }
 
 const userProfileColumns = sqlite.prepare("PRAGMA table_info(user_profile)").all() as Array<{ name: string }> ;
@@ -498,6 +527,10 @@ if (!billColumns.some((column) => column.name === "sub_total")) {
 
 
 
+sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users (email);");
+sqlite.exec("UPDATE users SET created_at = COALESCE(NULLIF(created_at, ''), datetime('now'));");
+sqlite.exec("UPDATE users SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'));");
+
 sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_permissions_module_action ON permissions (module, action);");
 sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_role_permissions_role_permission ON role_permissions (role, permission_id);");
 
@@ -556,6 +589,32 @@ const profileCount = sqlite.prepare("SELECT COUNT(*) as c FROM user_profile").ge
 if (profileCount.c === 0) {
   sqlite.prepare("INSERT INTO user_profile (name, email, phone, role, company, password) VALUES (?, ?, ?, ?, ?, ?)")
     .run("Admin", "admin@purchase.local", "", "Admin", "JAKHIRA", "admin123");
+}
+
+const userCount = sqlite.prepare("SELECT COUNT(*) as c FROM users").get() as { c: number };
+if (userCount.c === 0) {
+  const legacyProfile = sqlite.prepare("SELECT name, email, phone, role, password FROM user_profile ORDER BY id ASC LIMIT 1").get() as
+    | { name: string; email: string; phone: string; role: string; password: string }
+    | undefined;
+
+  const name = legacyProfile?.name?.trim() || "Admin";
+  const email = legacyProfile?.email?.trim() || "admin@purchase.local";
+  const phone = legacyProfile?.phone?.trim() || "";
+  const role = legacyProfile?.role?.trim() || "Admin";
+  const rawPassword = legacyProfile?.password?.trim() || "admin123";
+  const password = isPasswordHashed(rawPassword) ? rawPassword : hashPassword(rawPassword);
+  const timestamp = now();
+
+  sqlite.prepare(`INSERT INTO users (name, email, phone, password, role, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`)
+    .run(name, email, phone, password, role, timestamp, timestamp);
+}
+
+const legacyUsers = sqlite.prepare("SELECT id, password FROM users").all() as Array<{ id: number; password: string }>;
+for (const user of legacyUsers) {
+  if (!isPasswordHashed(user.password)) {
+    sqlite.prepare("UPDATE users SET password = ?, updated_at = ? WHERE id = ?")
+      .run(hashPassword(user.password), now(), user.id);
+  }
 }
 
 const settingsCount = sqlite.prepare("SELECT COUNT(*) as c FROM system_settings").get() as { c: number };

@@ -1,8 +1,9 @@
 import { db } from "./db";
+import { hashPassword, isPasswordHashed } from "./auth";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
-  materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, userProfile, systemSettings, permissions, rolePermissions,
+  materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
   type Site, type InsertSite,
   type Vendor, type InsertVendor,
   type Material, type InsertMaterial,
@@ -17,6 +18,7 @@ import {
   type InsertStockLedger,
   type MaterialRateHistoryEntry, type InsertMaterialRateHistory,
   type VendorMaterialRate, type InsertVendorMaterialRate,
+  type User, type InsertUser,
   type UserProfile, type InsertUserProfile,
   type SystemSettings, type InsertSystemSettings
 } from "@shared/schema";
@@ -87,6 +89,12 @@ export interface IStorage {
   getVendorLedger(vendorId: string, startDate?: string, endDate?: string): Promise<VendorLedgerEntry[]>;
   getVendorStatement(vendorId: string, month: string): Promise<VendorStatement>;
   getVendorPayables(): Promise<VendorPayable[]>;
+  getUsers(): Promise<User[]>;
+  getUserById(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  ensureDefaultAdminUser(): Promise<void>;
   getUserProfiles(): Promise<UserProfile[]>;
   createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
   updateUserProfile(id: number, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
@@ -1006,6 +1014,60 @@ export class DatabaseStorage implements IStorage {
   }
 
 
+  async getUsers(): Promise<User[]> {
+    return db.select().from(users);
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const [user] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const timestamp = new Date().toISOString();
+    const payload = {
+      ...user,
+      email: user.email.trim().toLowerCase(),
+      phone: user.phone ?? "",
+      password: isPasswordHashed(user.password) ? user.password : hashPassword(user.password),
+      role: user.role ?? "Admin",
+      isActive: user.isActive ?? 1,
+      createdAt: user.createdAt ?? timestamp,
+      updatedAt: user.updatedAt ?? timestamp,
+    };
+    const [result] = await db.insert(users).values(payload).returning();
+    return result;
+  }
+
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    const payload: Partial<InsertUser> = { ...user };
+    if (typeof payload.email === "string") {
+      payload.email = payload.email.trim().toLowerCase();
+    }
+    payload.updatedAt = new Date().toISOString();
+    const [result] = await db.update(users).set(payload).where(eq(users.id, id)).returning();
+    return result;
+  }
+
+  async ensureDefaultAdminUser(): Promise<void> {
+    const [existing] = await db.select().from(users).limit(1);
+    if (existing) return;
+    await this.createUser({
+      name: "Admin",
+      email: "admin@purchase.local",
+      phone: "",
+      password: hashPassword("admin123"),
+      role: "Admin",
+      isActive: 1,
+    });
+  }
+
   async getUserProfiles(): Promise<UserProfile[]> {
     return db.select().from(userProfile);
   }
@@ -1038,7 +1100,7 @@ export class DatabaseStorage implements IStorage {
       role: "Admin",
       company: "JAKHIRA",
       avatarUrl: "",
-      password: "admin123",
+      password: hashPassword("admin123"),
     });
   }
 
