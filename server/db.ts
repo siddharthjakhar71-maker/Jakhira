@@ -10,13 +10,13 @@ function getDataRoot(): string {
   if (process.env.APP_DATA_DIR) {
     return process.env.APP_DATA_DIR;
   }
-  if ((process as any).pkg) {
-    return dirname(process.execPath);
-  }
+
+  // ✅ Always use local folder for web mode
   return process.cwd();
-}
+}	
 
 const DB_PATH = join(getDataRoot(), "data", "local.db");
+console.log(" DB PATH:", DB_PATH);
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 
@@ -584,7 +584,7 @@ for (const permission of modulePermissions) {
 
 const now = () => new Date().toISOString();
 
-
+	
 const profileCount = sqlite.prepare("SELECT COUNT(*) as c FROM user_profile").get() as { c: number };
 if (profileCount.c === 0) {
   sqlite.prepare("INSERT INTO user_profile (name, email, phone, role, company, password) VALUES (?, ?, ?, ?, ?, ?)")

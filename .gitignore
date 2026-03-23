@@ -1,13 +1,18 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
-data/
-windows-dist/
-software-build/node_modules/
-software-build/output/
+# Build folders
+release/
+dist/
 
-# Local database
-*.db
+# Dependencies
+node_modules/
+
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+backups/*.db
+
+# Local tool files
+.local/
+
+# Env files
+.env

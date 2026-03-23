@@ -298,7 +298,7 @@ export function Sidebar() {
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/10">
               <img
-                src="/Jakhira.png"
+                src="/sidebarlogo.png"
                 alt="Jakhira ERP"
                 className="h-8 w-8 rounded-xl object-contain"
               />

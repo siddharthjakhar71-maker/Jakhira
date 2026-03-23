@@ -1,65 +1,18 @@
 {
-  "name": "jakhira-erp-desktop",
+  "name": "jakhira-erp",
   "version": "1.0.0",
-  "description": "Jakhira ERP desktop build powered by Electron, React, and Express.",
+  "description": "Jakhira ERP browser build powered by React and Express.",
   "type": "module",
-  "main": "electron/main.cjs",
   "license": "MIT",
   "scripts": {
-    "dev:client": "vite dev --port 5000",
-    "dev:web": "cross-env NODE_ENV=development tsx server/index.ts",
-    "dev": "cross-env NODE_ENV=development electron .",
-    "build:web": "tsx script/build.ts",
-    "build": "npm run build:web",
-    "start": "NODE_ENV=production node dist/index.cjs",
-    "start:desktop": "cross-env NODE_ENV=production electron .",
-    "check": "tsc",
-    "package": "npm run build && electron-builder --win nsis",
-    "package:dir": "npm run build && electron-builder --win dir",
-    "db:push": "drizzle-kit push"
-  },
-  "build": {
-    "appId": "com.jakhira.erp",
-    "productName": "Jakhira ERP",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "client/public/**/*",
-      "package.json",
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/bufferutil/**/*"
-    ],
-    "asar": true,
-    "asarUnpack": [
-      "dist/**",
-      "node_modules/better-sqlite3/**",
-      "node_modules/bufferutil/**"
-    ],
-    "extraMetadata": {
-      "main": "electron/main.cjs"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "client/public/logo.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Jakhira ERP"
-    }
-  },
+  "dev:web": "cross-env NODE_ENV=development tsx server/index.ts",
+  "dev": "npm run dev:web",
+  "build:web": "tsx script/build.ts",
+  "build": "npm run build:web",
+  "start": "cross-env NODE_ENV=production node dist/index.cjs",
+  "check": "tsc",
+  "db:push": "drizzle-kit push"
+},
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -92,11 +45,12 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.91.3",
     "@types/better-sqlite3": "^7.6.13",
-    "@yao-pkg/pkg": "^6.14.1",
     "better-sqlite3": "^12.8.0",
+    "bindings": "^1.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "concurrently": "^9.0.1",
     "cross-env": "^10.1.0",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.39.3",
@@ -143,15 +97,10 @@
     "autoprefixer": "^10.4.27",
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.0",
-    "electron": "^37.2.6",
-    "electron-builder": "^26.0.12",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.2",
     "tsx": "^4.20.5",
     "typescript": "5.6.3",
     "vite": "^7.1.9"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.8"
   }
 }

@@ -1,4 +1,12 @@
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
 const { app, BrowserWindow, dialog } = require('electron');
+app.disableHardwareAcceleration();
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -7,7 +15,7 @@ const http = require('node:http');
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT || 5000);
-const STARTUP_TIMEOUT_MS = 45_000;
+const STARTUP_TIMEOUT_MS = 45000;
 
 let mainWindow = null;
 let backendProcess = null;
@@ -19,12 +27,9 @@ function ensureFilePath(filePath, description) {
   if (!filePath || !fs.existsSync(filePath)) {
     throw new Error(`Missing ${description}: ${filePath}`);
   }
-
-  const stats = fs.statSync(filePath);
-  if (!stats.isFile()) {
-    throw new Error(`Expected ${description} to be a file, but received: ${filePath}`);
+  if (!fs.statSync(filePath).isFile()) {
+    throw new Error(`Expected ${description} to be a file: ${filePath}`);
   }
-
   return filePath;
 }
 
@@ -32,67 +37,67 @@ function resolveServerEntry() {
   if (app.isPackaged) {
     return ensureFilePath(
       path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'index.cjs'),
-      'packaged backend entry',
+      'packaged backend entry'
     );
   }
 
-  const developmentCandidates = [
+  const candidates = [
     path.join(app.getAppPath(), 'server', 'index.ts'),
     path.join(app.getAppPath(), 'dist', 'index.cjs'),
   ];
 
-  for (const candidate of developmentCandidates) {
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-      return candidate;
-    }
+  for (const file of candidates) {
+    if (fs.existsSync(file)) return file;
   }
 
-  throw new Error(`Unable to find a development backend entry file. Checked: ${developmentCandidates.join(', ')}`);
+  throw new Error(`Backend entry not found`);
 }
 
 function resolveStaticDir() {
-  const staticDir = app.isPackaged
+  const dir = app.isPackaged
     ? path.join(process.resourcesPath, 'app.asar.unpacked', 'dist', 'public')
     : path.join(app.getAppPath(), 'dist', 'public');
 
-  if (!fs.existsSync(staticDir) || !fs.statSync(staticDir).isDirectory()) {
-    throw new Error(`Missing static assets directory: ${staticDir}`);
+  if (!fs.existsSync(dir)) {
+    throw new Error(`Missing static directory: ${dir}`);
   }
 
-  return staticDir;
+  return dir;
 }
 
 function resolveIconPath() {
-  const iconPath = path.join(app.getAppPath(), 'client', 'public', 'logo.png');
-  return fs.existsSync(iconPath) ? iconPath : undefined;
+  const icon = path.join(app.getAppPath(), 'client', 'public', 'logo.png');
+  return fs.existsSync(icon) ? icon : undefined;
 }
 
 function resolveDevelopmentRunner(serverEntry) {
-  const appPath = app.getAppPath();
-  const isTypeScriptEntry = path.extname(serverEntry) === '.ts';
+  const isTS = path.extname(serverEntry) === '.ts';
 
-  if (!isTypeScriptEntry) {
+  if (!isTS) {
     return {
-      command: process.env.npm_node_execpath || (process.platform === 'win32' ? 'node.exe' : 'node'),
-      args: [ensureFilePath(serverEntry, 'development backend entry')],
+      command: process.platform === 'win32' ? 'node.exe' : 'node',
+      args: [serverEntry],
     };
   }
 
-  const tsxBinary = process.platform === 'win32'
-    ? path.join(appPath, 'node_modules', '.bin', 'tsx.cmd')
-    : path.join(appPath, 'node_modules', '.bin', 'tsx');
+  if (process.platform === 'win32') {
+    return {
+      command: 'cmd.exe',
+      args: ['/c', 'npx', 'tsx', serverEntry],
+    };
+  }
 
   return {
-    command: ensureFilePath(tsxBinary, 'tsx executable'),
-    args: [ensureFilePath(serverEntry, 'development backend entry')],
+    command: 'npx',
+    args: ['tsx', serverEntry],
   };
 }
 
-function waitForPort(port, timeoutMs) {
+function waitForPort(port, timeout) {
   return new Promise((resolve, reject) => {
-    const startedAt = Date.now();
+    const start = Date.now();
 
-    const attempt = () => {
+    const check = () => {
       const socket = net.connect({ host: HOST, port }, () => {
         socket.end();
         resolve();
@@ -100,65 +105,60 @@ function waitForPort(port, timeoutMs) {
 
       socket.on('error', () => {
         socket.destroy();
-        if (Date.now() - startedAt >= timeoutMs) {
-          reject(new Error(`Backend did not start on port ${port} within ${timeoutMs}ms.`));
+
+        if (Date.now() - start > timeout) {
+          reject(new Error(`Backend did not start on port ${port}`));
           return;
         }
-        setTimeout(attempt, 250);
+
+        setTimeout(check, 300);
       });
     };
 
-    attempt();
+    check();
   });
 }
 
-function waitForHealthcheck(port, timeoutMs) {
+function waitForHealth(port, timeout) {
   return new Promise((resolve, reject) => {
-    const startedAt = Date.now();
+    const start = Date.now();
 
-    const attempt = () => {
-      const request = http.get(
-        {
-          host: HOST,
-          port,
-          path: '/api/health',
-          timeout: 2_000,
-        },
-        (response) => {
-          response.resume();
-          if (response.statusCode === 200) {
+    const check = () => {
+      const req = http.get(
+        { host: HOST, port, path: '/api/health', timeout: 2000 },
+        (res) => {
+          res.resume();
+
+          if (res.statusCode === 200) {
             resolve();
             return;
           }
 
-          if (Date.now() - startedAt >= timeoutMs) {
-            reject(new Error(`Backend health check failed with status ${response.statusCode ?? 'unknown'}.`));
+          if (Date.now() - start > timeout) {
+            reject(new Error(`Backend health check failed`));
             return;
           }
 
-          setTimeout(attempt, 250);
-        },
+          setTimeout(check, 300);
+        }
       );
 
-      request.on('error', () => {
-        if (Date.now() - startedAt >= timeoutMs) {
-          reject(new Error(`Backend did not become healthy on port ${port} within ${timeoutMs}ms.`));
+      req.on('error', () => {
+        if (Date.now() - start > timeout) {
+          reject(new Error(`Backend not responding`));
           return;
         }
-
-        setTimeout(attempt, 250);
+        setTimeout(check, 300);
       });
 
-      request.on('timeout', () => {
-        request.destroy();
-      });
+      req.on('timeout', () => req.destroy());
     };
 
-    attempt();
+    check();
   });
 }
 
-function startDevelopmentBackend(serverEntry, env) {
+function startDevBackend(serverEntry, env) {
   const { command, args } = resolveDevelopmentRunner(serverEntry);
 
   backendProcess = spawn(command, args, {
@@ -169,34 +169,43 @@ function startDevelopmentBackend(serverEntry, env) {
     shell: false,
   });
 
-  backendProcess.on('error', (error) => {
-    dialog.showErrorBox('Backend failed to start', `Could not start the ERP backend.\n\n${error.message}`);
+  backendProcess.on('error', (err) => {
+    console.error('Backend failed to start:', err);
+    dialog.showErrorBox('Backend Error', err.message);
     app.quit();
   });
 
-  backendProcess.on('exit', (code) => {
+  backendProcess.on('exit', (code, signal) => {
     backendProcess = null;
+
+    // 🔥 IMPORTANT: do NOT close app in dev
     if (!isQuitting && code !== 0) {
-      dialog.showErrorBox('Backend stopped', `The ERP backend exited unexpectedly with code ${code ?? 'unknown'}.`);
+      if (!app.isPackaged) {
+        console.error(`Backend crashed (dev mode) → code=${code}, signal=${signal}`);
+        return;
+      }
+
+      dialog.showErrorBox(
+        'Backend Stopped',
+        `Exit code: ${code ?? 'unknown'}\nSignal: ${signal ?? 'none'}`
+      );
       app.quit();
     }
   });
-}
+} 
 
-function startPackagedBackend(serverEntry) {
-  const packagedEntry = ensureFilePath(serverEntry, 'packaged backend entry');
-  require(packagedEntry);
+function startProdBackend(serverEntry) {
+  require(serverEntry);
   backendStarted = true;
 }
 
-async function ensureBackendStarted() {
-  if (backendStartupPromise) {
-    return backendStartupPromise;
-  }
+async function ensureBackend() {
+  if (backendStartupPromise) return backendStartupPromise;
 
   backendStartupPromise = (async () => {
     const serverEntry = resolveServerEntry();
     const staticDir = resolveStaticDir();
+
     const env = {
       ...process.env,
       PORT: String(PORT),
@@ -205,41 +214,26 @@ async function ensureBackendStarted() {
       APP_STATIC_DIR: staticDir,
     };
 
-    process.env.PORT = env.PORT;
-    process.env.NODE_ENV = env.NODE_ENV;
-    process.env.APP_DATA_DIR = env.APP_DATA_DIR;
-    process.env.APP_STATIC_DIR = env.APP_STATIC_DIR;
-
     if (app.isPackaged) {
-      if (!backendStarted) {
-        startPackagedBackend(serverEntry);
-      }
+      if (!backendStarted) startProdBackend(serverEntry);
     } else if (!backendProcess) {
-      startDevelopmentBackend(serverEntry, env);
+      startDevBackend(serverEntry, env);
     }
 
     await waitForPort(PORT, STARTUP_TIMEOUT_MS);
-    await waitForHealthcheck(PORT, STARTUP_TIMEOUT_MS);
+    await waitForHealth(PORT, STARTUP_TIMEOUT_MS);
   })();
 
-  try {
-    await backendStartupPromise;
-  } catch (error) {
-    backendStartupPromise = null;
-    throw error;
-  }
+  return backendStartupPromise;
 }
 
-async function createMainWindow() {
-  await ensureBackendStarted();
+async function createWindow() {
+  await ensureBackend();
 
   mainWindow = new BrowserWindow({
-    width: 1440,
+    width: 1400,
     height: 900,
-    minWidth: 1200,
-    minHeight: 760,
     show: false,
-    autoHideMenuBar: true,
     icon: resolveIconPath(),
     webPreferences: {
       contextIsolation: true,
@@ -248,9 +242,7 @@ async function createMainWindow() {
     },
   });
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-  });
+  mainWindow.once('ready-to-show', () => mainWindow.show());
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -261,15 +253,18 @@ async function createMainWindow() {
 
 async function bootstrap() {
   try {
-    await createMainWindow();
+    await createWindow();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error('Electron bootstrap failed:', message);
     dialog.showErrorBox('Unable to start Jakhira ERP', message);
     app.quit();
   }
 }
 
-app.whenReady().then(bootstrap);
+app.whenReady().then(() => {
+  void bootstrap();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
