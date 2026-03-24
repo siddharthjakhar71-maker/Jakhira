@@ -171,7 +171,6 @@ export default function Settings() {
     await updateUserProfile({
       name: profileData.name,
       email: profileData.email,
-      role: profileData.role,
       avatarUrl: displayedAvatar,
     });
     toast({
@@ -285,7 +284,7 @@ export default function Settings() {
                   <CardHeader>
                     <CardTitle>User Profile</CardTitle>
                     <CardDescription>
-                      Update the name and role details shown across the app, including the sidebar.
+                      Update your profile details shown across the app, including the sidebar.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="h-full">
@@ -353,15 +352,10 @@ export default function Settings() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="profile-role">Role / Department</Label>
-                        <Input
-                          id="profile-role"
-                          value={profileData.role}
-                          onChange={(e) =>
-                            setProfileData({ ...profileData, role: e.target.value })
-                          }
-                          placeholder="Operations"
-                        />
+                        <Label>Role</Label>
+                        <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                          {userProfile.role || ERP_ROLES.VIEWER}
+                        </p>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="profile-email">Email</Label>

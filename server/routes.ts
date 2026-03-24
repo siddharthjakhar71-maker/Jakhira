@@ -224,7 +224,6 @@ export async function registerRoutes(
     if (typeof req.body?.name === "string") payload.name = req.body.name.trim();
     if (typeof req.body?.email === "string") payload.email = req.body.email.trim().toLowerCase();
     if (typeof req.body?.phone === "string") payload.phone = req.body.phone.trim();
-    if (typeof req.body?.role === "string") payload.role = req.body.role.trim();
     if (typeof req.body?.avatarUrl === "string" && req.body.avatarUrl.trim().length > 0) {
       try {
         assertProfileImageSize(req.body.avatarUrl);
