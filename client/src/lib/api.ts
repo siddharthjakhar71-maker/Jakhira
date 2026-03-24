@@ -68,6 +68,20 @@ export type CostAnalysisResponse = {
   topVendorsBySpend: CostAnalysisRow[];
 };
 
+export type AuditLog = {
+  id: number;
+  userId: string;
+  userName: string;
+  userRole: string;
+  action: string;
+  module: string;
+  entityType: string;
+  entityId: string;
+  description: string;
+  metadata: string;
+  createdAt: string;
+};
+
 async function fetchJSON(url: string, options?: RequestInit) {
   const res = await fetch(url, {
     credentials: "include",
@@ -204,6 +218,17 @@ export const api = {
     fetchJSON(`/api/access-control/permissions/${role}`),
   updateRolePermissions: (role: string, map: AccessPermissionMap): Promise<{ role: string; map: AccessPermissionMap }> =>
     fetchJSON(`/api/access-control/permissions/${role}`, { method: "PUT", body: JSON.stringify({ map }) }),
+  getAuditLogs: (filters?: { userId?: string; module?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }): Promise<AuditLog[]> => {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.set("userId", filters.userId);
+    if (filters?.module) params.set("module", filters.module);
+    if (filters?.startDate) params.set("startDate", filters.startDate);
+    if (filters?.endDate) params.set("endDate", filters.endDate);
+    if (typeof filters?.limit === "number") params.set("limit", String(filters.limit));
+    if (typeof filters?.offset === "number") params.set("offset", String(filters.offset));
+    const query = params.toString();
+    return fetchJSON(`/api/audit-logs${query ? `?${query}` : ""}`);
+  },
   importVendorRates: (fileDataBase64: string, fileName: string) =>
     fetchFormDataJSON("/api/vendor-rate-import", {
       method: "POST",
@@ -230,4 +255,5 @@ export const queryKeys = {
   vendorMaterialRates: ["vendorMaterialRates"] as const,
   vendorLedger: ["vendorLedger"] as const,
   systemSettings: ["systemSettings"] as const,
+  auditLogs: ["auditLogs"] as const,
 };

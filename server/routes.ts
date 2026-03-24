@@ -7,6 +7,7 @@ import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, PERMISSION_R
 import { getSessionUser, requireAuth } from "./auth-middleware";
 import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
 import { erpRoleSchema } from "@shared/schema";
+import { logAuditEvent } from "./lib/audit-log";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -38,6 +39,12 @@ export async function registerRoutes(
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  };
+
+  const getAuditActor = async (req: Request) => {
+    const user = await getCurrentUser(req);
+    if (!user) return undefined;
+    return { id: user.id, name: user.name, role: user.role };
   };
 
   const isSupportedRole = (role: string) => erpRoleSchema.safeParse(role).success;
@@ -162,6 +169,15 @@ export async function registerRoutes(
       });
     });
 
+    await logAuditEvent(storage, { id: user.id, name: user.name, role: user.role }, {
+      action: "LOGIN_SUCCESS",
+      module: "Authentication",
+      entityType: "session",
+      entityId: req.sessionID,
+      description: `${user.name} logged in successfully.`,
+      metadata: { email: user.email },
+    });
+
     return res.json({ success: true, user: sanitizeUser(user) });
   });
 
@@ -195,12 +211,19 @@ export async function registerRoutes(
   });
 
   app.post("/api/auth/logout", async (req, res) => {
+    const actor = await getAuditActor(req);
     req.session.destroy((error) => {
       if (error) {
         return res.status(500).json({ message: "Failed to logout" });
       }
 
       res.clearCookie("jakhira.sid");
+      void logAuditEvent(storage, actor, {
+        action: "LOGOUT",
+        module: "Authentication",
+        entityType: "session",
+        description: `${actor?.name || "User"} logged out.`,
+      });
       return res.json({ success: true });
     });
   });
@@ -213,6 +236,26 @@ export async function registerRoutes(
   app.get("/api/auth/profile", async (req, res) => {
     const user = await getCurrentUser(req);
     return res.json({ profile: sanitizeUser(user) });
+  });
+
+  app.get("/api/audit-logs", async (req, res) => {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!isAdminRole(currentUser.role)) {
+      return res.status(403).json({ message: "Only Admin can view audit logs" });
+    }
+
+    const logs = await storage.getAuditLogs({
+      userId: typeof req.query.userId === "string" ? req.query.userId : undefined,
+      module: typeof req.query.module === "string" ? req.query.module : undefined,
+      startDate: typeof req.query.startDate === "string" ? req.query.startDate : undefined,
+      endDate: typeof req.query.endDate === "string" ? req.query.endDate : undefined,
+      limit: typeof req.query.limit === "string" ? Number(req.query.limit) : undefined,
+      offset: typeof req.query.offset === "string" ? Number(req.query.offset) : undefined,
+    });
+    return res.json(logs);
   });
 
   app.patch("/api/auth/profile", async (req, res) => {
@@ -303,6 +346,14 @@ export async function registerRoutes(
       role,
       isActive: Number(req.body?.isActive ?? 1) ? 1 : 0,
     });
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_USER",
+      module: "Access Control",
+      entityType: "user",
+      entityId: created.id,
+      description: `User ${created.name} was created with role ${created.role}.`,
+      metadata: { email: created.email, isActive: created.isActive },
+    });
     res.json(sanitizeUser(created));
   });
 
@@ -330,6 +381,21 @@ export async function registerRoutes(
     if (typeof req.body?.password === "string" && req.body.password.trim()) payload.password = hashPassword(req.body.password.trim());
     const updated = await storage.updateUser(targetId, payload);
     if (!updated) return res.status(404).json({ message: "User not found" });
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "UPDATE_USER",
+      module: "Access Control",
+      entityType: "user",
+      entityId: updated.id,
+      description: `User ${updated.name} was updated.`,
+      metadata: {
+        roleChanged: targetUser.role !== updated.role,
+        previousRole: targetUser.role,
+        newRole: updated.role,
+        activeChanged: targetUser.isActive !== updated.isActive,
+        previousActive: targetUser.isActive,
+        newActive: updated.isActive,
+      },
+    });
     res.json(sanitizeUser(updated));
   });
 
@@ -366,6 +432,15 @@ export async function registerRoutes(
       return res.status(404).json({ message: "User not found" });
     }
 
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_USER",
+      module: "Access Control",
+      entityType: "user",
+      entityId: targetUser.id,
+      description: `User ${targetUser.name} was deleted.`,
+      metadata: { email: targetUser.email, role: targetUser.role },
+    });
+
     return res.json({ success: true, message: "User deleted successfully" });
   });
 
@@ -397,6 +472,14 @@ export async function registerRoutes(
 
     await storage.setRolePermissionMap(role, safeMap);
     const updated = await storage.getRolePermissionMap(role);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "UPDATE_ROLE_PERMISSIONS",
+      module: "Access Control",
+      entityType: "role",
+      entityId: role,
+      description: `Permissions were updated for role ${role}.`,
+      metadata: { map: updated },
+    });
     res.json({ role, map: updated });
   });
 
@@ -420,6 +503,13 @@ export async function registerRoutes(
   app.post("/api/sites", async (req, res) => {
     try {
       const result = await storage.createSite(req.body);
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "CREATE_SITE",
+        module: "Sites",
+        entityType: "site",
+        entityId: result.id,
+        description: `Site ${result.siteName || result.name} was created.`,
+      });
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ message: error?.message || "Failed to create site" });
@@ -438,6 +528,15 @@ export async function registerRoutes(
   app.patch("/api/sites/:id", async (req, res) => {
     try {
       const result = await storage.updateSite(Number(req.params.id), req.body);
+      if (result) {
+        await logAuditEvent(storage, await getAuditActor(req), {
+          action: "UPDATE_SITE",
+          module: "Sites",
+          entityType: "site",
+          entityId: result.id,
+          description: `Site ${result.siteName || result.name} was updated.`,
+        });
+      }
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ message: error?.message || "Failed to update site" });
@@ -445,7 +544,15 @@ export async function registerRoutes(
   });
 
   app.delete("/api/sites/:id", async (req, res) => {
+    const id = Number(req.params.id);
     await storage.deleteSite(Number(req.params.id));
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_SITE",
+      module: "Sites",
+      entityType: "site",
+      entityId: id,
+      description: `Site ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -457,6 +564,13 @@ export async function registerRoutes(
 
   app.post("/api/vendors", async (req, res) => {
     const result = await storage.createVendor(req.body);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_VENDOR",
+      module: "Vendors",
+      entityType: "vendor",
+      entityId: result.id,
+      description: `Vendor ${result.name} was created.`,
+    });
     res.json(result);
   });
 
@@ -471,11 +585,28 @@ export async function registerRoutes(
 
   app.patch("/api/vendors/:id", async (req, res) => {
     const result = await storage.updateVendor(Number(req.params.id), req.body);
+    if (result) {
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "UPDATE_VENDOR",
+        module: "Vendors",
+        entityType: "vendor",
+        entityId: result.id,
+        description: `Vendor ${result.name} was updated.`,
+      });
+    }
     res.json(result);
   });
 
   app.delete("/api/vendors/:id", async (req, res) => {
-    await storage.deleteVendor(Number(req.params.id));
+    const id = Number(req.params.id);
+    await storage.deleteVendor(id);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_VENDOR",
+      module: "Vendors",
+      entityType: "vendor",
+      entityId: id,
+      description: `Vendor ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -487,6 +618,13 @@ export async function registerRoutes(
 
   app.post("/api/materials", async (req, res) => {
     const result = await storage.createMaterial(req.body);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_MATERIAL",
+      module: "Materials",
+      entityType: "material",
+      entityId: result.id,
+      description: `Material ${result.name} was created.`,
+    });
     res.json(result);
   });
 
@@ -501,11 +639,28 @@ export async function registerRoutes(
 
   app.patch("/api/materials/:id", async (req, res) => {
     const result = await storage.updateMaterial(Number(req.params.id), req.body);
+    if (result) {
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "UPDATE_MATERIAL",
+        module: "Materials",
+        entityType: "material",
+        entityId: result.id,
+        description: `Material ${result.name} was updated.`,
+      });
+    }
     res.json(result);
   });
 
   app.delete("/api/materials/:id", async (req, res) => {
-    await storage.deleteMaterial(Number(req.params.id));
+    const id = Number(req.params.id);
+    await storage.deleteMaterial(id);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_MATERIAL",
+      module: "Materials",
+      entityType: "material",
+      entityId: id,
+      description: `Material ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -563,6 +718,13 @@ export async function registerRoutes(
     }
     try {
       const result = await storage.createPurchaseOrder(req.body);
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "CREATE_PO",
+        module: "Purchase Orders",
+        entityType: "purchase_order",
+        entityId: result.id,
+        description: `Purchase order ${result.displayId} was created.`,
+      });
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ message: error?.message || "Failed to create purchase order" });
@@ -571,11 +733,28 @@ export async function registerRoutes(
 
   app.patch("/api/pos/:id", async (req, res) => {
     const result = await storage.updatePurchaseOrder(Number(req.params.id), req.body);
+    if (result) {
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "UPDATE_PO",
+        module: "Purchase Orders",
+        entityType: "purchase_order",
+        entityId: result.id,
+        description: `Purchase order ${result.displayId} was updated.`,
+      });
+    }
     res.json(result);
   });
 
   app.delete("/api/pos/:id", async (req, res) => {
-    await storage.deletePurchaseOrder(Number(req.params.id));
+    const id = Number(req.params.id);
+    await storage.deletePurchaseOrder(id);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_PO",
+      module: "Purchase Orders",
+      entityType: "purchase_order",
+      entityId: id,
+      description: `Purchase order ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -595,16 +774,40 @@ export async function registerRoutes(
     }
     const payload = { ...req.body, siteId: po.siteId, poId: po.displayId };
     const result = await storage.createGrn(payload);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_GRN",
+      module: "GRN",
+      entityType: "grn",
+      entityId: result.id,
+      description: `GRN ${result.displayId} was created.`,
+    });
     res.json(result);
   });
 
   app.patch("/api/grns/:id", async (req, res) => {
     const result = await storage.updateGrn(Number(req.params.id), req.body);
+    if (result) {
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "UPDATE_GRN",
+        module: "GRN",
+        entityType: "grn",
+        entityId: result.id,
+        description: `GRN ${result.displayId} was updated.`,
+      });
+    }
     res.json(result);
   });
 
   app.delete("/api/grns/:id", async (req, res) => {
-    await storage.deleteGrn(Number(req.params.id));
+    const id = Number(req.params.id);
+    await storage.deleteGrn(id);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_GRN",
+      module: "GRN",
+      entityType: "grn",
+      entityId: id,
+      description: `GRN ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -624,16 +827,40 @@ export async function registerRoutes(
     }
     const payload = { ...req.body, siteId: po.siteId, poId: po.displayId, vendorId: po.vendorId };
     const result = await storage.createBill(payload);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_BILL",
+      module: "Bills",
+      entityType: "bill",
+      entityId: result.id,
+      description: `Bill ${result.displayId} was created.`,
+    });
     res.json(result);
   });
 
   app.patch("/api/bills/:id", async (req, res) => {
     const result = await storage.updateBill(Number(req.params.id), req.body);
+    if (result) {
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "UPDATE_BILL",
+        module: "Bills",
+        entityType: "bill",
+        entityId: result.id,
+        description: `Bill ${result.displayId} was updated.`,
+      });
+    }
     res.json(result);
   });
 
   app.delete("/api/bills/:id", async (req, res) => {
-    await storage.deleteBill(Number(req.params.id));
+    const id = Number(req.params.id);
+    await storage.deleteBill(id);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_BILL",
+      module: "Bills",
+      entityType: "bill",
+      entityId: id,
+      description: `Bill ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -646,16 +873,40 @@ export async function registerRoutes(
 
   app.post("/api/payments", async (req, res) => {
     const result = await storage.createPayment(req.body);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_PAYMENT",
+      module: "Payments",
+      entityType: "payment",
+      entityId: result.id,
+      description: `Payment ${result.displayId} was created.`,
+    });
     res.json(result);
   });
 
   app.patch("/api/payments/:id", async (req, res) => {
     const result = await storage.updatePayment(Number(req.params.id), req.body);
+    if (result) {
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "UPDATE_PAYMENT",
+        module: "Payments",
+        entityType: "payment",
+        entityId: result.id,
+        description: `Payment ${result.displayId} was updated.`,
+      });
+    }
     res.json(result);
   });
 
   app.delete("/api/payments/:id", async (req, res) => {
-    await storage.deletePayment(Number(req.params.id));
+    const id = Number(req.params.id);
+    await storage.deletePayment(id);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "DELETE_PAYMENT",
+      module: "Payments",
+      entityType: "payment",
+      entityId: id,
+      description: `Payment ${id} was deleted.`,
+    });
     res.json({ success: true });
   });
 
@@ -761,11 +1012,26 @@ export async function registerRoutes(
 
   app.patch("/api/system-tools/settings", async (req, res) => {
     const result = await storage.updateSystemSettings(req.body);
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "UPDATE_SETTINGS",
+      module: "System Tools",
+      entityType: "system_settings",
+      entityId: result.id,
+      description: "System backup settings were updated.",
+      metadata: req.body,
+    });
     res.json(result);
   });
 
-  app.post("/api/system-tools/backup", async (_req, res) => {
+  app.post("/api/system-tools/backup", async (req, res) => {
     const result = await storage.createDatabaseBackup();
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "CREATE_BACKUP",
+      module: "System Tools",
+      entityType: "backup",
+      entityId: result.fileName,
+      description: `Database backup ${result.fileName} was created.`,
+    });
     res.json(result);
   });
 
@@ -785,6 +1051,12 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Admin password confirmation failed" });
     }
     await storage.resetDemoData();
+    await logAuditEvent(storage, await getAuditActor(req), {
+      action: "RESET_DEMO_DATA",
+      module: "System Tools",
+      entityType: "system",
+      description: "Demo data reset was executed.",
+    });
     return res.json({ success: true });
   });
 

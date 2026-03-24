@@ -250,6 +250,20 @@ export const users = sqliteTable("users", {
   emailUniqueIdx: uniqueIndex("idx_users_email_unique").on(table.email),
 }));
 
+export const auditLogs = sqliteTable("audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().default(""),
+  userName: text("user_name").notNull().default(""),
+  userRole: text("user_role").notNull().default(""),
+  action: text("action").notNull(),
+  module: text("module").notNull(),
+  entityType: text("entity_type").notNull().default(""),
+  entityId: text("entity_id").notNull().default(""),
+  description: text("description").notNull(),
+  metadata: text("metadata").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(""),
+});
+
 export const userProfile = sqliteTable("user_profile", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
@@ -386,6 +400,7 @@ export const insertSiteStockSchema = createInsertSchema(siteStock).omit({ id: tr
 export const insertStockLedgerSchema = createInsertSchema(stockLedger).omit({ id: true });
 export const insertMaterialRateHistorySchema = createInsertSchema(materialRateHistory).omit({ id: true });
 export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({ id: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true });
 
 export type Site = typeof sites.$inferSelect;
 export type InsertSite = z.infer<typeof insertSiteSchema>;
@@ -421,3 +436,5 @@ export type MaterialRateHistoryEntry = typeof materialRateHistory.$inferSelect;
 export type InsertMaterialRateHistory = z.infer<typeof insertMaterialRateHistorySchema>;
 export type SystemSettings = typeof systemSettings.$inferSelect;
 export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;

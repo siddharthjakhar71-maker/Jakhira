@@ -250,7 +250,24 @@ CREATE TABLE IF NOT EXISTS vendors (
     rate REAL NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL DEFAULT '',
+    user_name TEXT NOT NULL DEFAULT '',
+    user_role TEXT NOT NULL DEFAULT '',
+    action TEXT NOT NULL,
+    module TEXT NOT NULL,
+    entity_type TEXT NOT NULL DEFAULT '',
+    entity_id TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+  );
 `);
+
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);");
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_audit_logs_module ON audit_logs(module);");
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);");
 
 
 
