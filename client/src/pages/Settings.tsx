@@ -36,6 +36,7 @@ import { api } from "@/lib/api";
 import { MAX_PROFILE_IMAGE_BYTES, formatFileSize } from "@/lib/profile/profile-image";
 import POTemplateDesigner from "./POTemplateDesigner";
 import TemplateStyleDesigner from "./TemplateStyleDesigner";
+import { ERP_ROLE_LIST, ERP_ROLES } from "@shared/permissions";
 
 type SettingsTab =
   | "general"
@@ -55,6 +56,7 @@ export default function Settings() {
     accessControlUsers,
     createAccessControlUser,
     updateAccessControlUser,
+    deleteAccessControlUser,
     can,
     viewerPermissionMap,
     updateViewerPermissions,
@@ -80,12 +82,18 @@ export default function Settings() {
   const setAvatar = useUserStore((store) => store.setAvatar);
   const removeAvatar = useUserStore((store) => store.removeAvatar);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    role: string;
+  }>({
     name: "",
     email: "",
     phone: "",
     password: "",
-    role: "Viewer" as "Admin" | "Viewer",
+    role: ERP_ROLES.VIEWER,
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -224,8 +232,15 @@ export default function Settings() {
 
   const handleCreateUser = async () => {
     await createAccessControlUser(newUser);
-    setNewUser({ name: "", email: "", phone: "", password: "", role: "Viewer" });
+    setNewUser({ name: "", email: "", phone: "", password: "", role: ERP_ROLES.VIEWER });
     toast({ title: "User created" });
+  };
+
+  const handleDeleteUser = async (id: number, name: string) => {
+    const confirmed = window.confirm(`Delete user "${name}" permanently? This action cannot be undone.`);
+    if (!confirmed) return;
+    await deleteAccessControlUser(id);
+    toast({ title: "User deleted" });
   };
 
   const handleTogglePermission = async (moduleName: string, action: string) => {
@@ -577,7 +592,7 @@ export default function Settings() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Users</CardTitle>
-                    <CardDescription>Create and manage Admin/Viewer users.</CardDescription>
+                    <CardDescription>Create and manage users and roles.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -587,13 +602,14 @@ export default function Settings() {
                       <Input type="password" placeholder="Password" value={newUser.password} onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))} />
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Select value={newUser.role} onValueChange={(v: "Admin" | "Viewer") => setNewUser((prev) => ({ ...prev, role: v }))}>
+                      <Select value={newUser.role} onValueChange={(v: string) => setNewUser((prev) => ({ ...prev, role: v }))}>
                         <SelectTrigger className="w-48">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                          <SelectItem value="Viewer">Viewer</SelectItem>
+                          {ERP_ROLE_LIST.map((role) => (
+                            <SelectItem key={role} value={role}>{role}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <Button onClick={handleCreateUser}>Create User</Button>
@@ -607,19 +623,30 @@ export default function Settings() {
                             <div className="text-xs text-muted-foreground">{user.email}</div>
                           </div>
                           <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateAccessControlUser(user.id, { role: user.role === "Admin" ? "Viewer" : "Admin" })}
-                            >
-                              Switch Role
-                            </Button>
+                            <Select value={user.role} onValueChange={(role: string) => updateAccessControlUser(user.id, { role })}>
+                              <SelectTrigger className="h-8 w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ERP_ROLE_LIST.map((role) => (
+                                  <SelectItem key={`${user.id}-${role}`} value={role}>{role}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => updateAccessControlUser(user.id, { isActive: user.isActive ? 0 : 1 })}
                             >
                               {user.isActive ? "Deactivate" : "Activate"}
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              disabled={user.id === userProfile.id}
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                            >
+                              Delete
                             </Button>
                           </div>
                         </div>

@@ -16,8 +16,75 @@ export const ERP_PERMISSION_ACTIONS = ["view", "create", "edit", "delete", "appr
 
 export const ERP_ROLES = {
   ADMIN: "Admin",
+  MANAGER: "Manager",
+  PURCHASE: "Purchase",
+  ACCOUNTS: "Accounts",
+  STORE: "Store",
   VIEWER: "Viewer",
 } as const;
+
+const VIEW_ONLY_ACTIONS = Object.fromEntries(
+  ERP_PERMISSION_ACTIONS.map((action) => [action, action === "view"]),
+) as Partial<Record<PermissionAction, boolean>>;
+
+const MODULE_ACTION_OVERRIDES: Partial<
+  Record<
+    keyof typeof ERP_ROLES,
+    Partial<Record<PermissionModule, Partial<Record<PermissionAction, boolean>>>>
+  >
+> = {
+  ADMIN: {},
+  MANAGER: {
+    Dashboard: VIEW_ONLY_ACTIONS,
+    Sites: { view: true, create: true, edit: true, approve: true, export: true },
+    Vendors: { view: true, create: true, edit: true, approve: true, export: true },
+    Materials: { view: true, create: true, edit: true, approve: true, export: true },
+    "Purchase Orders": { view: true, create: true, edit: true, approve: true, export: true },
+    GRN: { view: true, create: true, edit: true, approve: true, export: true },
+    Bills: { view: true, create: true, edit: true, approve: true, export: true },
+    Payments: { view: true, create: true, edit: true, approve: true, export: true },
+    Stock: { view: true, create: true, edit: true, approve: true, export: true },
+    Reports: { view: true, export: true },
+    Settings: { view: true },
+  },
+  PURCHASE: {
+    Dashboard: VIEW_ONLY_ACTIONS,
+    Sites: { view: true, create: true, edit: true, export: true },
+    Vendors: { view: true, create: true, edit: true, export: true },
+    Materials: { view: true, create: true, edit: true, export: true },
+    "Purchase Orders": { view: true, create: true, edit: true, approve: true, export: true },
+    GRN: { view: true, create: true, edit: true, approve: true, export: true },
+    Reports: { view: true, export: true },
+  },
+  ACCOUNTS: {
+    Dashboard: VIEW_ONLY_ACTIONS,
+    Vendors: { view: true },
+    Bills: { view: true, create: true, edit: true, approve: true, export: true },
+    Payments: { view: true, create: true, edit: true, approve: true, export: true },
+    Reports: { view: true, export: true },
+  },
+  STORE: {
+    Dashboard: VIEW_ONLY_ACTIONS,
+    Materials: { view: true, create: true, edit: true, export: true },
+    GRN: { view: true, create: true, edit: true, approve: true, export: true },
+    Stock: { view: true, create: true, edit: true, approve: true, export: true },
+  },
+  VIEWER: {
+    Dashboard: VIEW_ONLY_ACTIONS,
+    Sites: VIEW_ONLY_ACTIONS,
+    Vendors: VIEW_ONLY_ACTIONS,
+    Materials: VIEW_ONLY_ACTIONS,
+    "Purchase Orders": VIEW_ONLY_ACTIONS,
+    GRN: VIEW_ONLY_ACTIONS,
+    Bills: VIEW_ONLY_ACTIONS,
+    Payments: VIEW_ONLY_ACTIONS,
+    Stock: VIEW_ONLY_ACTIONS,
+    Reports: VIEW_ONLY_ACTIONS,
+    Settings: { view: true },
+  },
+};
+
+export const ERP_ROLE_LIST = Object.values(ERP_ROLES) as string[];
 
 export type PermissionModule = (typeof ERP_PERMISSION_MODULES)[number];
 export type PermissionAction = (typeof ERP_PERMISSION_ACTIONS)[number];
@@ -40,13 +107,19 @@ export type PermissionMap = Partial<Record<PermissionModule, Partial<Record<Perm
 
 export function buildRolePermissionMap(role: string): PermissionMap {
   const normalizedRole = (role || "").trim().toLowerCase();
-  const isAdmin = normalizedRole === ERP_ROLES.ADMIN.toLowerCase();
+  const roleKey = (Object.keys(ERP_ROLES).find(
+    (key) => ERP_ROLES[key as keyof typeof ERP_ROLES].toLowerCase() === normalizedRole,
+  ) || "VIEWER") as keyof typeof ERP_ROLES;
+  const isAdmin = roleKey === "ADMIN";
+  const overrides = MODULE_ACTION_OVERRIDES[roleKey] || {};
   const result: PermissionMap = {};
 
   for (const moduleName of ERP_PERMISSION_MODULES) {
     result[moduleName] = {};
     for (const action of ERP_PERMISSION_ACTIONS) {
-      result[moduleName]![action] = isAdmin ? true : action === "view";
+      const baseAllowed = isAdmin ? true : false;
+      const override = overrides[moduleName]?.[action];
+      result[moduleName]![action] = typeof override === "boolean" ? override : baseAllowed;
     }
   }
 

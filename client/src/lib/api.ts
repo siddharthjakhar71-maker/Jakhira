@@ -31,7 +31,7 @@ export type AccessControlUser = {
   name: string;
   email: string;
   phone: string;
-  role: "Admin" | "Viewer";
+  role: string;
   isActive: number;
   createdAt?: string;
   updatedAt?: string;
@@ -198,7 +198,9 @@ export const api = {
     fetchJSON("/api/access-control/users", { method: "POST", body: JSON.stringify(data) }),
   updateAccessControlUser: (id: number, data: Partial<AccessControlUser> & { password?: string }) =>
     fetchJSON(`/api/access-control/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-  getRolePermissions: (role: "Admin" | "Viewer"): Promise<{ role: string; modules: string[]; actions: string[]; map: AccessPermissionMap }> =>
+  deleteAccessControlUser: (id: number): Promise<{ success: boolean; message: string }> =>
+    fetchJSON(`/api/access-control/users/${id}`, { method: "DELETE" }),
+  getRolePermissions: (role: string): Promise<{ role: string; modules: string[]; actions: string[]; map: AccessPermissionMap }> =>
     fetchJSON(`/api/access-control/permissions/${role}`),
   updateRolePermissions: (role: "Viewer", map: AccessPermissionMap): Promise<{ role: string; map: AccessPermissionMap }> =>
     fetchJSON(`/api/access-control/permissions/${role}`, { method: "PUT", body: JSON.stringify({ map }) }),

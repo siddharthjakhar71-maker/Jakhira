@@ -57,7 +57,7 @@ type StoreContextType = {
   siteStocks: SiteStockEntry[]; updateSiteStock: (siteId: string, materialId: string, receivedDelta: number, issuedDelta: number) => void;
   rateHistory: RateHistoryEntry[]; addRateHistory: (entry: any) => void;
   vendorMaterialRates: VendorMaterialRateEntry[]; upsertVendorMaterialRate: (vendorId: string, materialId: string, rate: number) => void; deleteVendorMaterialRate: (id: number) => void;
-  accessControlUsers: AccessControlUser[]; createAccessControlUser: (user: Partial<AccessControlUser> & { password: string }) => Promise<void>; updateAccessControlUser: (id: number, user: Partial<AccessControlUser> & { password?: string }) => Promise<void>;
+  accessControlUsers: AccessControlUser[]; createAccessControlUser: (user: Partial<AccessControlUser> & { password: string }) => Promise<void>; updateAccessControlUser: (id: number, user: Partial<AccessControlUser> & { password?: string }) => Promise<void>; deleteAccessControlUser: (id: number) => Promise<void>;
   permissionMap: PermissionMap; viewerPermissionMap: PermissionMap; can: (module: PermissionModule, action: PermissionAction) => boolean; updateViewerPermissions: (map: AccessPermissionMap) => Promise<void>;
   isLoading: boolean;
 };
@@ -104,7 +104,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const rateHistoryQuery = useQuery({ queryKey: queryKeys.rateHistory, queryFn: api.getRateHistory, enabled: isAuthenticated });
   const vendorMaterialRatesQuery = useQuery({ queryKey: queryKeys.vendorMaterialRates, queryFn: api.getVendorMaterialRates, enabled: isAuthenticated });
   const systemSettingsQuery = useQuery({ queryKey: queryKeys.systemSettings, queryFn: api.getSystemSettings, enabled: isAuthenticated });
-  const currentRole = (meQuery.data?.user?.role || defaultProfile.role) as "Admin" | "Viewer";
+  const currentRole = String(meQuery.data?.user?.role || defaultProfile.role);
   const accessControlUsersQuery = useQuery({ queryKey: ['access-control', 'users'], queryFn: api.getAccessControlUsers, enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
   const rolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', currentRole], queryFn: () => api.getRolePermissions(currentRole), enabled: isAuthenticated });
   const viewerPermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', ERP_ROLES.VIEWER], queryFn: () => api.getRolePermissions("Viewer"), enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
@@ -414,6 +414,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await queryClient.invalidateQueries({ queryKey: ['access-control', 'users'] });
   };
 
+  const deleteAccessControlUser = async (id: number) => {
+    assertCan("Settings", "delete");
+    await api.deleteAccessControlUser(id);
+    await queryClient.invalidateQueries({ queryKey: ['access-control', 'users'] });
+  };
+
   const updateViewerPermissions = async (map: AccessPermissionMap) => {
     assertCan("Settings", "edit");
     await api.updateRolePermissions("Viewer", map);
@@ -440,7 +446,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       siteStocks, updateSiteStock,
       rateHistory, addRateHistory,
       vendorMaterialRates, upsertVendorMaterialRate, deleteVendorMaterialRate,
-      accessControlUsers, createAccessControlUser, updateAccessControlUser,
+      accessControlUsers, createAccessControlUser, updateAccessControlUser, deleteAccessControlUser,
       permissionMap, viewerPermissionMap, can, updateViewerPermissions,
       isLoading,
     }}>
