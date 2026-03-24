@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
-import { TrendingUp, ShoppingCart, FileClock, Filter } from "lucide-react";
+import { Filter } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
@@ -21,7 +21,7 @@ const formatCurrency = (value: number) => {
 };
 
 export default function Dashboard() {
-  const { pos, bills, payments, vendors, sites, isLoading } = useStore();
+  const { pos, vendors, sites, isLoading } = useStore();
   const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
 
   const { data: vendorPayables = [] } = useQuery<VendorPayableResponse[]>({
@@ -33,17 +33,6 @@ export default function Dashboard() {
     if (selectedSiteId === "all") return pos;
     return pos.filter(p => p.siteId === selectedSiteId);
   }, [pos, selectedSiteId]);
-
-  const filteredBills = useMemo(() => {
-    if (selectedSiteId === "all") return bills;
-    return bills.filter(b => b.siteId === selectedSiteId);
-  }, [bills, selectedSiteId]);
-
-  const filteredPayments = useMemo(() => {
-    if (selectedSiteId === "all") return payments;
-    const siteBillIds = new Set(filteredBills.map(b => b.displayId));
-    return payments.filter(p => siteBillIds.has(p.billId));
-  }, [payments, selectedSiteId, filteredBills]);
 
   const totalPurchase = filteredPOs.reduce((acc, po) => acc + po.totalAmount, 0);
   const pendingPOs = filteredPOs.filter(po => po.status === 'Pending').length;

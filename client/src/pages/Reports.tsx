@@ -193,7 +193,7 @@ export default function Reports() {
                       dataKey="amount"
                       label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
                     >
-                      {vendorChartData.map((entry, index) => (
+                      {vendorChartData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>

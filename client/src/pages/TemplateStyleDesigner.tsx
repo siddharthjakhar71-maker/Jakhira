@@ -1,15 +1,13 @@
-import { useStore, type TemplateStyle, type TemplateStyleConfig, type LayoutBlock } from "@/lib/store";
+import { useStore, type TemplateStyleConfig, type LayoutBlock } from "@/lib/store";
 import { DEFAULT_LAYOUT_BLOCKS } from "@/lib/poDocGenerator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Save, Trash2, Star, Copy, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, Layout, ChevronLeft, ChevronRight, Columns, Maximize2 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Plus, Save, Trash2, Star, Copy, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, Layout, Columns, Maximize2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -38,8 +36,6 @@ const BLOCK_LIGHT_COLORS: Record<string, string> = {
   terms: 'bg-orange-100 border-orange-300 text-orange-800',
   signature: 'bg-rose-100 border-rose-300 text-rose-800',
 };
-
-const GRID_COLS = 2;
 
 export default function TemplateStyleDesigner() {
   const { templateStyles, addTemplateStyle, updateTemplateStyle, deleteTemplateStyle, poTemplates } = useStore();
@@ -161,8 +157,6 @@ export default function TemplateStyleDesigner() {
 
       const targetRow = block.row - 1;
       const blocksInTargetRow = prev.blocks.filter(b => b.row === targetRow);
-      const blocksInCurrentRow = prev.blocks.filter(b => b.row === block.row && b.id !== blockId);
-
       const blocks = prev.blocks.map(b => {
         if (b.id === blockId) return { ...b, row: targetRow };
         if (blocksInTargetRow.some(tb => tb.id === b.id)) return { ...b, row: block.row };
@@ -543,7 +537,6 @@ export default function TemplateStyleDesigner() {
                         const visibleBlocks = rowBlocks.filter(b => b.visible);
                         if (visibleBlocks.length === 0) return null;
 
-                        const allFull = visibleBlocks.every(b => b.colSpan === 2);
                         const hasSideBySide = visibleBlocks.length >= 2 && visibleBlocks.some(b => b.colSpan === 1);
 
                         if (hasSideBySide) {

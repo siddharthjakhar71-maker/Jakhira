@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { hashPassword, isPasswordHashed } from "./auth";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
   materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
@@ -14,10 +14,10 @@ import {
   type POTemplate, type InsertPOTemplate,
   type TemplateStyle, type InsertTemplateStyle,
   type MaterialIssue, type InsertMaterialIssue,
-  type SiteStock, type InsertSiteStock,
+  type SiteStock,
   type InsertStockLedger,
   type MaterialRateHistoryEntry, type InsertMaterialRateHistory,
-  type VendorMaterialRate, type InsertVendorMaterialRate,
+  type VendorMaterialRate,
   type User, type InsertUser,
   type UserProfile, type InsertUserProfile,
   type SystemSettings, type InsertSystemSettings

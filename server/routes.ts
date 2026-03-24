@@ -561,17 +561,17 @@ export async function registerRoutes(
     res.json(result);
   });
 
-  app.post("/api/system-tools/backup", async (req, res) => {
+  app.post("/api/system-tools/backup", async (_req, res) => {
     const result = await storage.createDatabaseBackup();
     res.json(result);
   });
 
-  app.get("/api/system-tools/backup/download", async (req, res) => {
+  app.get("/api/system-tools/backup/download", async (_req, res) => {
     const result = await storage.createDatabaseBackup();
     res.download(result.filePath, result.fileName);
   });
 
-  app.get("/api/system-logs", async (req, res) => {
+  app.get("/api/system-logs", async (_req, res) => {
     res.json([]);
   });
 
