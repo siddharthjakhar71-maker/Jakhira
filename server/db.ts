@@ -573,14 +573,6 @@ const modulePermissions = sqlite
 
 const roleList = Object.values(ERP_ROLES);
 for (const role of roleList) {
-  const existing = sqlite
-    .prepare("SELECT COUNT(*) as c FROM role_permissions WHERE role = ?")
-    .get(role) as { c: number };
-
-  if (existing.c > 0) {
-    continue;
-  }
-
   const defaultMap = buildRolePermissionMap(role);
   for (const permission of modulePermissions) {
     const moduleName = permission.module as PermissionModule;

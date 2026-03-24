@@ -58,8 +58,10 @@ export default function Settings() {
     updateAccessControlUser,
     deleteAccessControlUser,
     can,
-    viewerPermissionMap,
-    updateViewerPermissions,
+    managedRole,
+    setManagedRole,
+    managedRolePermissionMap,
+    updateRolePermissions,
   } = useStore();
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme();
   const { toast } = useToast();
@@ -244,11 +246,11 @@ export default function Settings() {
   };
 
   const handleTogglePermission = async (moduleName: string, action: string) => {
-    const next = JSON.parse(JSON.stringify(viewerPermissionMap || {}));
+    const next = JSON.parse(JSON.stringify(managedRolePermissionMap || {}));
     next[moduleName] = next[moduleName] || {};
     next[moduleName][action] = !Boolean(next[moduleName][action]);
-    await updateViewerPermissions(next);
-    toast({ title: "Viewer permissions updated" });
+    await updateRolePermissions(managedRole, next);
+    toast({ title: `${managedRole} permissions updated` });
   };
 
   return (
@@ -657,11 +659,24 @@ export default function Settings() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Viewer Module Permissions</CardTitle>
-                    <CardDescription>Toggle safe module-level actions for Viewer role.</CardDescription>
+                    <CardTitle>Role Module Permissions</CardTitle>
+                    <CardDescription>Toggle module-level actions for the selected role.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {Object.entries(viewerPermissionMap || {}).map(([moduleName, actions]) => (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="role-permission-target">Role</Label>
+                      <Select value={managedRole} onValueChange={(role: string) => setManagedRole(role)}>
+                        <SelectTrigger id="role-permission-target" className="w-48">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ERP_ROLE_LIST.filter((role) => role !== ERP_ROLES.ADMIN).map((role) => (
+                            <SelectItem key={`permission-${role}`} value={role}>{role}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {Object.entries(managedRolePermissionMap || {}).map(([moduleName, actions]) => (
                       <div key={moduleName} className="rounded border p-2">
                         <p className="mb-2 text-sm font-semibold">{moduleName}</p>
                         <div className="flex flex-wrap gap-2">

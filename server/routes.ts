@@ -3,9 +3,10 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
-import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLE_LIST, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import { getSessionUser, requireAuth } from "./auth-middleware";
 import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
+import { erpRoleSchema } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -37,6 +38,8 @@ export async function registerRoutes(
       updatedAt: user.updatedAt,
     };
   };
+
+  const isSupportedRole = (role: string) => erpRoleSchema.safeParse(role).success;
 
   const requirePermission = async (req: Request, res: any, action: string): Promise<boolean> => {
     const user = await getCurrentUser(req);
@@ -284,7 +287,7 @@ export async function registerRoutes(
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
-    if (!ERP_ROLE_LIST.includes(role)) {
+    if (!isSupportedRole(role)) {
       return res.status(400).json({ message: "Unsupported role" });
     }
 
@@ -305,7 +308,7 @@ export async function registerRoutes(
       return res.status(400).json({ message: "Invalid user id" });
     }
 
-    if (typeof req.body?.role === "string" && !ERP_ROLE_LIST.includes(req.body.role.trim())) {
+    if (typeof req.body?.role === "string" && !isSupportedRole(req.body.role.trim())) {
       return res.status(400).json({ message: "Unsupported role" });
     }
 
@@ -363,19 +366,25 @@ export async function registerRoutes(
   });
 
   app.get("/api/access-control/permissions/:role", async (req, res) => {
-    const role = req.params.role;
+    const role = typeof req.params.role === "string" ? req.params.role.trim() : "";
+    if (!isSupportedRole(role)) {
+      return res.status(400).json({ message: "Unsupported role" });
+    }
     const map = await storage.getRolePermissionMap(role);
     res.json({ role, modules: ERP_PERMISSION_MODULES, actions: ERP_PERMISSION_ACTIONS, map });
   });
 
   app.put("/api/access-control/permissions/:role", async (req, res) => {
-    const role = req.params.role;
+    const role = typeof req.params.role === "string" ? req.params.role.trim() : "";
+    if (!isSupportedRole(role)) {
+      return res.status(400).json({ message: "Unsupported role" });
+    }
     if (role === ERP_ROLES.ADMIN) {
       return res.status(400).json({ message: "Admin permissions are fixed to full access" });
     }
 
     const incomingMap = (req.body?.map || {}) as PermissionMap;
-    const safeMap: PermissionMap = buildRolePermissionMap(ERP_ROLES.VIEWER);
+    const safeMap: PermissionMap = buildRolePermissionMap(role);
     for (const moduleName of ERP_PERMISSION_MODULES) {
       for (const action of ERP_PERMISSION_ACTIONS) {
         safeMap[moduleName]![action] = canAccess(incomingMap, role, moduleName, action);

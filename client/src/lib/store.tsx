@@ -58,7 +58,7 @@ type StoreContextType = {
   rateHistory: RateHistoryEntry[]; addRateHistory: (entry: any) => void;
   vendorMaterialRates: VendorMaterialRateEntry[]; upsertVendorMaterialRate: (vendorId: string, materialId: string, rate: number) => void; deleteVendorMaterialRate: (id: number) => void;
   accessControlUsers: AccessControlUser[]; createAccessControlUser: (user: Partial<AccessControlUser> & { password: string }) => Promise<void>; updateAccessControlUser: (id: number, user: Partial<AccessControlUser> & { password?: string }) => Promise<void>; deleteAccessControlUser: (id: number) => Promise<void>;
-  permissionMap: PermissionMap; viewerPermissionMap: PermissionMap; can: (module: PermissionModule, action: PermissionAction) => boolean; updateViewerPermissions: (map: AccessPermissionMap) => Promise<void>;
+  permissionMap: PermissionMap; managedRole: string; setManagedRole: (role: string) => void; managedRolePermissionMap: PermissionMap; can: (module: PermissionModule, action: PermissionAction) => boolean; updateRolePermissions: (role: string, map: AccessPermissionMap) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -105,9 +105,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const vendorMaterialRatesQuery = useQuery({ queryKey: queryKeys.vendorMaterialRates, queryFn: api.getVendorMaterialRates, enabled: isAuthenticated });
   const systemSettingsQuery = useQuery({ queryKey: queryKeys.systemSettings, queryFn: api.getSystemSettings, enabled: isAuthenticated });
   const currentRole = String(meQuery.data?.user?.role || defaultProfile.role);
+  const [managedRole, setManagedRole] = useState<string>(ERP_ROLES.MANAGER);
   const accessControlUsersQuery = useQuery({ queryKey: ['access-control', 'users'], queryFn: api.getAccessControlUsers, enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
   const rolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', currentRole], queryFn: () => api.getRolePermissions(currentRole), enabled: isAuthenticated });
-  const viewerPermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', ERP_ROLES.VIEWER], queryFn: () => api.getRolePermissions("Viewer"), enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
+  const managedRolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', managedRole], queryFn: () => api.getRolePermissions(managedRole), enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
 
   const sites: Site[] = sitesQuery.data || [];
   const vendors: Vendor[] = vendorsQuery.data || [];
@@ -130,11 +131,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (mapFromServer) return mapFromServer;
     return buildRolePermissionMap(userProfile.role || ERP_ROLES.VIEWER);
   }, [rolePermissionsQuery.data?.map, userProfile.role]);
-  const viewerPermissionMap: PermissionMap = useMemo(() => {
-    const mapFromServer = viewerPermissionsQuery.data?.map as PermissionMap | undefined;
+  const managedRolePermissionMap: PermissionMap = useMemo(() => {
+    const mapFromServer = managedRolePermissionsQuery.data?.map as PermissionMap | undefined;
     if (mapFromServer) return mapFromServer;
-    return buildRolePermissionMap(ERP_ROLES.VIEWER);
-  }, [viewerPermissionsQuery.data?.map]);
+    return buildRolePermissionMap(managedRole);
+  }, [managedRole, managedRolePermissionsQuery.data?.map]);
 
   const isLoading = sitesQuery.isLoading || vendorsQuery.isLoading || materialsQuery.isLoading || posQuery.isLoading || grnsQuery.isLoading || billsQuery.isLoading || paymentsQuery.isLoading;
   const can = (moduleName: PermissionModule, action: PermissionAction) => canAccess(permissionMap, userProfile.role, moduleName, action);
@@ -420,10 +421,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await queryClient.invalidateQueries({ queryKey: ['access-control', 'users'] });
   };
 
-  const updateViewerPermissions = async (map: AccessPermissionMap) => {
+  const updateRolePermissions = async (role: string, map: AccessPermissionMap) => {
     assertCan("Settings", "edit");
-    await api.updateRolePermissions("Viewer", map);
-    await queryClient.invalidateQueries({ queryKey: ['access-control', 'permissions', 'Viewer'] });
+    await api.updateRolePermissions(role, map);
+    await queryClient.invalidateQueries({ queryKey: ['access-control', 'permissions', role] });
+    if (role === currentRole) {
+      await queryClient.invalidateQueries({ queryKey: ['access-control', 'permissions', currentRole] });
+    }
   };
 
   return (
@@ -447,7 +451,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       rateHistory, addRateHistory,
       vendorMaterialRates, upsertVendorMaterialRate, deleteVendorMaterialRate,
       accessControlUsers, createAccessControlUser, updateAccessControlUser, deleteAccessControlUser,
-      permissionMap, viewerPermissionMap, can, updateViewerPermissions,
+      permissionMap, managedRole, setManagedRole, managedRolePermissionMap, can, updateRolePermissions,
       isLoading,
     }}>
       {children}
