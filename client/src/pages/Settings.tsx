@@ -36,7 +36,7 @@ import { api } from "@/lib/api";
 import { MAX_PROFILE_IMAGE_BYTES, formatFileSize } from "@/lib/profile/profile-image";
 import POTemplateDesigner from "./POTemplateDesigner";
 import TemplateStyleDesigner from "./TemplateStyleDesigner";
-import { ERP_ROLE_LIST, ERP_ROLES } from "@shared/permissions";
+import { ERP_ROLE_LIST, ERP_ROLES, isAdminRole } from "@shared/permissions";
 
 type SettingsTab =
   | "general"
@@ -98,6 +98,7 @@ export default function Settings() {
     role: ERP_ROLES.VIEWER,
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isAdminUser = isAdminRole(userProfile.role);
 
   useEffect(() => {
     setProfileData((prev) => ({
@@ -225,11 +226,17 @@ export default function Settings() {
     { key: "appearance" as const, label: "Appearance", icon: Palette },
     { key: "po-templates" as const, label: "PO Templates", icon: FileSliders },
     { key: "template-styles" as const, label: "Template Styles", icon: Layout },
-    { key: "system-tools" as const, label: "System Tools", icon: Database },
-    ...(can("Settings", "view") && (userProfile.role || "").toLowerCase() === "admin"
+    ...(isAdminUser ? [{ key: "system-tools" as const, label: "System Tools", icon: Database }] : []),
+    ...(can("Settings", "view") && isAdminUser
       ? [{ key: "access-control" as const, label: "Access Control", icon: UserCircle }]
       : []),
   ];
+
+  useEffect(() => {
+    if (!tabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab("general");
+    }
+  }, [activeTab, tabs]);
 
   const handleCreateUser = async () => {
     await createAccessControlUser(newUser);
@@ -479,7 +486,7 @@ export default function Settings() {
               </Card>
             )}
 
-            {activeTab === "system-tools" && (
+            {isAdminUser && activeTab === "system-tools" && (
               <div className="grid items-stretch gap-4 xl:grid-cols-2">
                 <Card className="h-full">
                   <CardHeader>
@@ -583,7 +590,7 @@ export default function Settings() {
 
             {activeTab === "po-templates" && <POTemplateDesigner />}
             {activeTab === "template-styles" && <TemplateStyleDesigner />}
-            {activeTab === "access-control" && (
+            {isAdminUser && activeTab === "access-control" && (
               <div className="grid gap-4 xl:grid-cols-2">
                 <Card>
                   <CardHeader>

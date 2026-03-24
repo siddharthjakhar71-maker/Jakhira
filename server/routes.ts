@@ -3,7 +3,7 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
-import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, isAdminRole, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import { getSessionUser, requireAuth } from "./auth-middleware";
 import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
 import { erpRoleSchema } from "@shared/schema";
@@ -176,7 +176,7 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if ((user.role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase()) {
+    if (isAdminRole(user.role)) {
       return next();
     }
 
@@ -271,7 +271,7 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if ((currentUser.role || "").trim().toLowerCase() !== ERP_ROLES.ADMIN.toLowerCase()) {
+    if (!isAdminRole(currentUser.role)) {
       return res.status(403).json({ message: "Only Admin can manage Access Control users" });
     }
 
@@ -398,6 +398,17 @@ export async function registerRoutes(
     await storage.setRolePermissionMap(role, safeMap);
     const updated = await storage.getRolePermissionMap(role);
     res.json({ role, map: updated });
+  });
+
+  app.use("/api/system-tools", async (req, res, next) => {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!isAdminRole(currentUser.role)) {
+      return res.status(403).json({ message: "Only Admin can access System Tools" });
+    }
+    return next();
   });
 
   // Sites

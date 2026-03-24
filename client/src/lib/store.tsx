@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, queryKeys, type AccessControlUser, type AccessPermissionMap } from './api';
-import { buildRolePermissionMap, canAccess, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from '@shared/permissions';
+import { buildRolePermissionMap, canAccess, ERP_ROLES, isAdminRole, type PermissionAction, type PermissionMap, type PermissionModule } from '@shared/permissions';
 import { userStore } from '@/stores/user-store';
 
 export type Site = { id: number; siteName: string; projectName: string; siteCode: string; poPrefix?: string; billingCode?: string; address: string; city: string; state: string; pincode: string; contactPerson: string; phone: string; status: string; createdAt?: string; name: string; location: string; billingName?: string; billTo?: string; shipTo?: string };
@@ -89,6 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = Boolean(meQuery.data?.user);
   const isAuthLoading = meQuery.isLoading;
+  const currentRole = String(meQuery.data?.user?.role || defaultProfile.role);
 
   const sitesQuery = useQuery({ queryKey: queryKeys.sites, queryFn: api.getSites, enabled: isAuthenticated });
   const vendorsQuery = useQuery({ queryKey: queryKeys.vendors, queryFn: api.getVendors, enabled: isAuthenticated });
@@ -104,12 +105,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const siteStockQuery = useQuery({ queryKey: queryKeys.siteStock, queryFn: api.getSiteStocks, enabled: isAuthenticated });
   const rateHistoryQuery = useQuery({ queryKey: queryKeys.rateHistory, queryFn: api.getRateHistory, enabled: isAuthenticated });
   const vendorMaterialRatesQuery = useQuery({ queryKey: queryKeys.vendorMaterialRates, queryFn: api.getVendorMaterialRates, enabled: isAuthenticated });
-  const systemSettingsQuery = useQuery({ queryKey: queryKeys.systemSettings, queryFn: api.getSystemSettings, enabled: isAuthenticated });
-  const currentRole = String(meQuery.data?.user?.role || defaultProfile.role);
+  const systemSettingsQuery = useQuery({ queryKey: queryKeys.systemSettings, queryFn: api.getSystemSettings, enabled: isAuthenticated && isAdminRole(currentRole) });
   const [managedRole, setManagedRole] = useState<string>(ERP_ROLES.MANAGER);
-  const accessControlUsersQuery = useQuery({ queryKey: ['access-control', 'users'], queryFn: api.getAccessControlUsers, enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
+  const accessControlUsersQuery = useQuery({ queryKey: ['access-control', 'users'], queryFn: api.getAccessControlUsers, enabled: isAuthenticated && isAdminRole(currentRole) });
   const rolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', currentRole], queryFn: () => api.getRolePermissions(currentRole), enabled: isAuthenticated });
-  const managedRolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', managedRole], queryFn: () => api.getRolePermissions(managedRole), enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
+  const managedRolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', managedRole], queryFn: () => api.getRolePermissions(managedRole), enabled: isAuthenticated && isAdminRole(currentRole) });
 
   const sites: Site[] = sitesQuery.data || [];
   const vendors: Vendor[] = vendorsQuery.data || [];
