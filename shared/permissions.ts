@@ -105,6 +105,10 @@ export const PERMISSION_ROUTE_MAP: Record<string, PermissionModule> = {
 
 export type PermissionMap = Partial<Record<PermissionModule, Partial<Record<PermissionAction, boolean>>>>;
 
+export function isAdminRole(role: string | undefined | null): boolean {
+  return (role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase();
+}
+
 export function buildRolePermissionMap(role: string): PermissionMap {
   const normalizedRole = (role || "").trim().toLowerCase();
   const roleKey = (Object.keys(ERP_ROLES).find(
