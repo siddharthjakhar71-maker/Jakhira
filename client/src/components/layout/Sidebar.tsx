@@ -225,6 +225,7 @@ export function Sidebar() {
 
   const userName = useUserStore((store) => store.name) || userProfile?.name?.trim() || "User";
   const avatarUrl = useUserStore((store) => store.avatar) || userProfile?.avatarUrl?.trim() || "";
+  const userRole = userProfile?.role?.trim() || "User";
 
   const sections = useMemo(
     () => [
@@ -360,6 +361,9 @@ export function Sidebar() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold tracking-tight text-white">
                   {userName}
+                </p>
+                <p className="truncate text-xs text-slate-400">
+                  {userRole}
                 </p>
               </div>
             </div>

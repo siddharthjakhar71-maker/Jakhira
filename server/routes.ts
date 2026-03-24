@@ -32,6 +32,7 @@ export async function registerRoutes(
       name: user.name,
       email: user.email,
       phone: user.phone,
+      avatarUrl: user.avatarUrl,
       role: user.role,
       isActive: user.isActive,
       createdAt: user.createdAt,
@@ -224,16 +225,20 @@ export async function registerRoutes(
     if (typeof req.body?.name === "string") payload.name = req.body.name.trim();
     if (typeof req.body?.email === "string") payload.email = req.body.email.trim().toLowerCase();
     if (typeof req.body?.phone === "string") payload.phone = req.body.phone.trim();
-    if (typeof req.body?.avatarUrl === "string" && req.body.avatarUrl.trim().length > 0) {
-      try {
-        assertProfileImageSize(req.body.avatarUrl);
-      } catch (error) {
-        return res.status(413).json({
-          message: error instanceof Error ? error.message : "Invalid profile image.",
-          profileImage: getProfileImageConfig(),
-          recommendedUploadMode: "multipart/form-data",
-        });
+    if (typeof req.body?.avatarUrl === "string") {
+      const avatarUrl = req.body.avatarUrl.trim();
+      if (avatarUrl.length > 0) {
+        try {
+          assertProfileImageSize(avatarUrl);
+        } catch (error) {
+          return res.status(413).json({
+            message: error instanceof Error ? error.message : "Invalid profile image.",
+            profileImage: getProfileImageConfig(),
+            recommendedUploadMode: "multipart/form-data",
+          });
+        }
       }
+      payload.avatarUrl = avatarUrl;
     }
 
     const updated = await storage.updateUser(currentUser.id, payload);
