@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { hashPassword, isPasswordHashed } from "./auth";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { eq, and, or, inArray, desc, sql, type SQL } from "drizzle-orm";
 import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
@@ -114,7 +114,7 @@ export interface IStorage {
   listBackups(): Promise<string[]>;
   resetDemoData(): Promise<void>;
   createAuditLog(entry: InsertAuditLog): Promise<AuditLog>;
-  getAuditLogs(filters?: { limit?: number; offset?: number; userId?: string; module?: string; startDate?: string; endDate?: string }): Promise<AuditLog[]>;
+  getAuditLogs(filters?: { limit?: number; offset?: number; userId?: string; module?: string; startDate?: string; endDate?: string; date?: string }): Promise<AuditLog[]>;
 }
 
 export type VendorLedgerEntry = {
@@ -1275,26 +1275,57 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getAuditLogs(filters?: { limit?: number; offset?: number; userId?: string; module?: string; startDate?: string; endDate?: string }): Promise<AuditLog[]> {
-    const rows = await db.select().from(auditLogs).orderBy(desc(auditLogs.id));
-    const userId = (filters?.userId || "").trim();
-    const moduleName = (filters?.module || "").trim().toLowerCase();
-    const startDate = (filters?.startDate || "").trim();
-    const endDate = (filters?.endDate || "").trim();
+  async getAuditLogs(filters?: { limit?: number; offset?: number; userId?: string; module?: string; startDate?: string; endDate?: string; date?: string }): Promise<AuditLog[]> {
+    const userFilter = (filters?.userId || "").trim();
+    const moduleName = (filters?.module || "").trim();
+    const singleDate = (filters?.date || "").trim();
+    const startDate = (filters?.startDate || singleDate).trim();
+    const endDate = (filters?.endDate || singleDate).trim();
     const parsedOffset = Number(filters?.offset ?? 0);
     const parsedLimit = Number(filters?.limit ?? 100);
     const offset = Number.isFinite(parsedOffset) ? Math.max(0, parsedOffset) : 0;
     const limit = Number.isFinite(parsedLimit) ? Math.min(500, Math.max(1, parsedLimit)) : 100;
+    const conditions: SQL[] = [];
 
-    const filtered = rows.filter((row) => {
-      if (userId && row.userId !== userId) return false;
-      if (moduleName && row.module.trim().toLowerCase() !== moduleName) return false;
-      if (startDate && row.createdAt < startDate) return false;
-      if (endDate && row.createdAt > `${endDate}T23:59:59.999Z`) return false;
-      return true;
-    });
+    if (userFilter) {
+      const lowered = userFilter.toLowerCase();
+      const userCondition = or(
+        eq(auditLogs.userId, userFilter),
+        sql`LOWER(${auditLogs.userName}) LIKE ${`%${lowered}%`}`,
+      );
+      if (userCondition) {
+        conditions.push(userCondition);
+      }
+    }
 
-    return filtered.slice(offset, offset + limit);
+    if (moduleName) {
+      conditions.push(sql`LOWER(TRIM(${auditLogs.module})) = ${moduleName.toLowerCase()}`);
+    }
+
+    if (startDate) {
+      const startIso = new Date(`${startDate}T00:00:00.000Z`);
+      if (!Number.isNaN(startIso.getTime())) {
+        conditions.push(sql`datetime(${auditLogs.createdAt}) >= datetime(${startIso.toISOString()})`);
+      }
+    }
+
+    if (endDate) {
+      const endExclusive = new Date(`${endDate}T00:00:00.000Z`);
+      if (!Number.isNaN(endExclusive.getTime())) {
+        endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+        conditions.push(sql`datetime(${auditLogs.createdAt}) < datetime(${endExclusive.toISOString()})`);
+      }
+    }
+
+    const whereClause = conditions.length ? and(...conditions) : undefined;
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(whereClause)
+      .orderBy(desc(auditLogs.id))
+      .limit(limit)
+      .offset(offset);
+    return rows;
   }
 
   async resetDemoData(): Promise<void> {

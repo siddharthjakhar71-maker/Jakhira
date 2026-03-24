@@ -247,11 +247,19 @@ export async function registerRoutes(
       return res.status(403).json({ message: "Only Admin can view audit logs" });
     }
 
+    const normalizeQuery = (value: unknown): string | undefined => {
+      if (typeof value !== "string") return undefined;
+      const normalized = value.trim();
+      if (!normalized || normalized.toLowerCase() === "all") return undefined;
+      return normalized;
+    };
+
     const logs = await storage.getAuditLogs({
-      userId: typeof req.query.userId === "string" ? req.query.userId : undefined,
-      module: typeof req.query.module === "string" ? req.query.module : undefined,
-      startDate: typeof req.query.startDate === "string" ? req.query.startDate : undefined,
-      endDate: typeof req.query.endDate === "string" ? req.query.endDate : undefined,
+      userId: normalizeQuery(req.query.userId) ?? normalizeQuery(req.query.user) ?? normalizeQuery(req.query.userName),
+      module: normalizeQuery(req.query.module),
+      date: normalizeQuery(req.query.date),
+      startDate: normalizeQuery(req.query.startDate) ?? normalizeQuery(req.query.from),
+      endDate: normalizeQuery(req.query.endDate) ?? normalizeQuery(req.query.to),
       limit: typeof req.query.limit === "string" ? Number(req.query.limit) : undefined,
       offset: typeof req.query.offset === "string" ? Number(req.query.offset) : undefined,
     });
@@ -747,13 +755,24 @@ export async function registerRoutes(
 
   app.delete("/api/pos/:id", async (req, res) => {
     const id = Number(req.params.id);
+    const purchaseOrders = await storage.getPurchaseOrders();
+    const po = purchaseOrders.find((item) => item.id === id);
     await storage.deletePurchaseOrder(id);
+    const poReference = (po?.poNumber || po?.displayId || String(id)).trim() || String(id);
+    const vendorOrSiteHint = [po?.vendorId, po?.siteId].filter(Boolean).join(" / ");
+    const hintSuffix = vendorOrSiteHint ? ` (${vendorOrSiteHint})` : "";
     await logAuditEvent(storage, await getAuditActor(req), {
       action: "DELETE_PO",
       module: "Purchase Orders",
       entityType: "purchase_order",
       entityId: id,
-      description: `Purchase order ${id} was deleted.`,
+      description: `Deleted Purchase Order ${poReference}${hintSuffix}`,
+      metadata: JSON.stringify({
+        poNumber: po?.poNumber || "",
+        displayId: po?.displayId || "",
+        vendorId: po?.vendorId || "",
+        siteId: po?.siteId || "",
+      }),
     });
     res.json({ success: true });
   });

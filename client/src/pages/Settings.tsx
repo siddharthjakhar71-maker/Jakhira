@@ -37,7 +37,7 @@ import { api, queryKeys, type AuditLog } from "@/lib/api";
 import { MAX_PROFILE_IMAGE_BYTES, formatFileSize } from "@/lib/profile/profile-image";
 import POTemplateDesigner from "./POTemplateDesigner";
 import TemplateStyleDesigner from "./TemplateStyleDesigner";
-import { ERP_ROLE_LIST, ERP_ROLES, isAdminRole } from "@shared/permissions";
+import { ERP_PERMISSION_MODULES, ERP_ROLE_LIST, ERP_ROLES, isAdminRole } from "@shared/permissions";
 
 type SettingsTab =
   | "general"
@@ -125,6 +125,20 @@ export default function Settings() {
     enabled: isAdminUser,
   });
   const auditLogs: AuditLog[] = auditLogsQuery.data || [];
+  const auditModuleOptions = useMemo(() => {
+    const discovered = new Set<string>([
+      ...ERP_PERMISSION_MODULES,
+      "Authentication",
+      "Access Control",
+      "System Tools",
+      "PO Templates",
+      "Template Styles",
+    ]);
+    for (const log of auditLogs) {
+      if (log.module?.trim()) discovered.add(log.module.trim());
+    }
+    return Array.from(discovered).sort((a, b) => a.localeCompare(b));
+  }, [auditLogs]);
 
   useEffect(() => {
     setProfileData((prev) => ({
@@ -735,23 +749,51 @@ export default function Settings() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-2 md:grid-cols-4">
-                    <Input
-                      placeholder="Filter by User ID"
-                      value={auditFilters.userId}
-                      onChange={(e) => {
+                  <div className="grid gap-2 md:grid-cols-5">
+                    <Select
+                      value={auditFilters.userId || "__all_users__"}
+                      onValueChange={(value) => {
                         setAuditPage(0);
-                        setAuditFilters((prev) => ({ ...prev, userId: e.target.value }));
+                        setAuditFilters((prev) => ({
+                          ...prev,
+                          userId: value === "__all_users__" ? "" : value,
+                        }));
                       }}
-                    />
-                    <Input
-                      placeholder="Filter by Module"
-                      value={auditFilters.module}
-                      onChange={(e) => {
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Users" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all_users__">All Users</SelectItem>
+                        {accessControlUsers.map((user) => (
+                          <SelectItem key={`audit-user-${user.id}`} value={String(user.id)}>
+                            {user.name} (#{user.id})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={auditFilters.module || "__all_modules__"}
+                      onValueChange={(value) => {
                         setAuditPage(0);
-                        setAuditFilters((prev) => ({ ...prev, module: e.target.value }));
+                        setAuditFilters((prev) => ({
+                          ...prev,
+                          module: value === "__all_modules__" ? "" : value,
+                        }));
                       }}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Modules" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all_modules__">All Modules</SelectItem>
+                        {auditModuleOptions.map((moduleName) => (
+                          <SelectItem key={`audit-module-${moduleName}`} value={moduleName}>
+                            {moduleName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Input
                       type="date"
                       value={auditFilters.startDate}
@@ -768,6 +810,21 @@ export default function Settings() {
                         setAuditFilters((prev) => ({ ...prev, endDate: e.target.value }));
                       }}
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setAuditPage(0);
+                        setAuditFilters({
+                          userId: "",
+                          module: "",
+                          startDate: "",
+                          endDate: "",
+                        });
+                      }}
+                    >
+                      Clear Filters
+                    </Button>
                   </div>
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full min-w-[900px] text-sm">
