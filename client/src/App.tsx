@@ -30,6 +30,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUserStore } from "@/stores/user-store";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -62,6 +63,7 @@ function UserStoreInitializer() {
 function Router() {
   const { isAuthenticated, isAuthLoading } = useStore();
   const [location, setLocation] = useLocation();
+  const { canView, permissionMapLoading } = usePermissions();
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -86,33 +88,37 @@ function Router() {
     return null;
   }
 
+  if (permissionMapLoading && location !== "/") {
+    return null;
+  }
+
   return (
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/" component={Dashboard} />
-      <Route path="/sites" component={Sites} />
-      <Route path="/vendors" component={Vendors} />
-      <Route path="/materials" component={Materials} />
-      <Route path="/pos" component={PurchaseOrders} />
-      <Route path="/purchase-orders/create" component={PurchaseOrderCreate} />
-      <Route path="/grn" component={GRN} />
-      <Route path="/grn/create" component={GRNCreate} />
-      <Route path="/bills" component={Bills} />
-      <Route path="/bills/create" component={BillCreate} />
-      <Route path="/payments" component={Payments} />
-      <Route path="/payments/create" component={PaymentCreate} />
-      <Route path="/vendor-payments" component={VendorPayments} />
-      <Route path="/rate-comparison" component={RateComparison} />
-      <Route path="/vendor-rate-list" component={VendorRateList} />
-      <Route path="/vendor-ledger" component={VendorLedger} />
-      <Route path="/vendor-statement" component={VendorStatement} />
-      <Route path="/vendor-statements" component={VendorStatement} />
-      <Route path="/vendor-payables" component={VendorPayables} />
-      <Route path="/cost-analysis" component={CostAnalysis} />
-      <Route path="/stock" component={StockManagement} />
-      <Route path="/rate-history" component={RateHistory} />
-      <Route path="/reports" component={Reports} />
-      <Route path="/settings" component={Settings} />
+      <Route path="/sites">{canView("Sites") ? <Sites /> : <Dashboard />}</Route>
+      <Route path="/vendors">{canView("Vendors") ? <Vendors /> : <Dashboard />}</Route>
+      <Route path="/materials">{canView("Materials") ? <Materials /> : <Dashboard />}</Route>
+      <Route path="/pos">{canView("Purchase Orders") ? <PurchaseOrders /> : <Dashboard />}</Route>
+      <Route path="/purchase-orders/create">{canView("Purchase Orders") ? <PurchaseOrderCreate /> : <Dashboard />}</Route>
+      <Route path="/grn">{canView("GRN") ? <GRN /> : <Dashboard />}</Route>
+      <Route path="/grn/create">{canView("GRN") ? <GRNCreate /> : <Dashboard />}</Route>
+      <Route path="/bills">{canView("Bills") ? <Bills /> : <Dashboard />}</Route>
+      <Route path="/bills/create">{canView("Bills") ? <BillCreate /> : <Dashboard />}</Route>
+      <Route path="/payments">{canView("Payments") ? <Payments /> : <Dashboard />}</Route>
+      <Route path="/payments/create">{canView("Payments") ? <PaymentCreate /> : <Dashboard />}</Route>
+      <Route path="/vendor-payments">{canView("Payments") ? <VendorPayments /> : <Dashboard />}</Route>
+      <Route path="/rate-comparison">{canView("Vendors") ? <RateComparison /> : <Dashboard />}</Route>
+      <Route path="/vendor-rate-list">{canView("Vendors") ? <VendorRateList /> : <Dashboard />}</Route>
+      <Route path="/vendor-ledger">{canView("Vendors") ? <VendorLedger /> : <Dashboard />}</Route>
+      <Route path="/vendor-statement">{canView("Vendors") ? <VendorStatement /> : <Dashboard />}</Route>
+      <Route path="/vendor-statements">{canView("Vendors") ? <VendorStatement /> : <Dashboard />}</Route>
+      <Route path="/vendor-payables">{canView("Vendors") ? <VendorPayables /> : <Dashboard />}</Route>
+      <Route path="/cost-analysis">{canView("Reports") ? <CostAnalysis /> : <Dashboard />}</Route>
+      <Route path="/stock">{canView("Stock") ? <StockManagement /> : <Dashboard />}</Route>
+      <Route path="/rate-history">{canView("Stock") ? <RateHistory /> : <Dashboard />}</Route>
+      <Route path="/reports">{canView("Reports") ? <Reports /> : <Dashboard />}</Route>
+      <Route path="/settings">{canView("Settings") ? <Settings /> : <Dashboard />}</Route>
       <Route>
         {() => (
           <AppLayout>

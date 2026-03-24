@@ -58,7 +58,7 @@ type StoreContextType = {
   rateHistory: RateHistoryEntry[]; addRateHistory: (entry: any) => void;
   vendorMaterialRates: VendorMaterialRateEntry[]; upsertVendorMaterialRate: (vendorId: string, materialId: string, rate: number) => void; deleteVendorMaterialRate: (id: number) => void;
   accessControlUsers: AccessControlUser[]; createAccessControlUser: (user: Partial<AccessControlUser> & { password: string }) => Promise<void>; updateAccessControlUser: (id: number, user: Partial<AccessControlUser> & { password?: string }) => Promise<void>; deleteAccessControlUser: (id: number) => Promise<void>;
-  permissionMap: PermissionMap; managedRole: string; setManagedRole: (role: string) => void; managedRolePermissionMap: PermissionMap; can: (module: PermissionModule, action: PermissionAction) => boolean; updateRolePermissions: (role: string, map: AccessPermissionMap) => Promise<void>;
+  permissionMap: PermissionMap; permissionMapLoading: boolean; managedRole: string; setManagedRole: (role: string) => void; managedRolePermissionMap: PermissionMap; can: (module: PermissionModule, action: PermissionAction) => boolean; updateRolePermissions: (role: string, map: AccessPermissionMap) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -136,6 +136,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (mapFromServer) return mapFromServer;
     return buildRolePermissionMap(managedRole);
   }, [managedRole, managedRolePermissionsQuery.data?.map]);
+  const permissionMapLoading = isAuthenticated && rolePermissionsQuery.isLoading;
 
   const isLoading = sitesQuery.isLoading || vendorsQuery.isLoading || materialsQuery.isLoading || posQuery.isLoading || grnsQuery.isLoading || billsQuery.isLoading || paymentsQuery.isLoading;
   const can = (moduleName: PermissionModule, action: PermissionAction) => canAccess(permissionMap, userProfile.role, moduleName, action);
@@ -451,7 +452,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       rateHistory, addRateHistory,
       vendorMaterialRates, upsertVendorMaterialRate, deleteVendorMaterialRate,
       accessControlUsers, createAccessControlUser, updateAccessControlUser, deleteAccessControlUser,
-      permissionMap, managedRole, setManagedRole, managedRolePermissionMap, can, updateRolePermissions,
+      permissionMap, permissionMapLoading, managedRole, setManagedRole, managedRolePermissionMap, can, updateRolePermissions,
       isLoading,
     }}>
       {children}

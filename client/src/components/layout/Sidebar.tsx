@@ -23,12 +23,15 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useUserStore } from "@/stores/user-store";
+import { usePermissions } from "@/hooks/usePermissions";
+import type { PermissionModule } from "@shared/permissions";
 
 const SIDEBAR_TOGGLE_EVENT = "erp:toggle-sidebar";
 
 type NavItem = {
   name: string;
   href: string;
+  module: PermissionModule;
   icon: React.ElementType;
   badge?: string;
 };
@@ -43,37 +46,37 @@ type NavSectionProps = {
 };
 
 const dashboardNavigation: NavItem[] = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/", module: "Dashboard", icon: LayoutDashboard },
 ];
 const siteNavigation: NavItem[] = [
-  { name: "Sites", href: "/sites", icon: MapPinned },
+  { name: "Sites", href: "/sites", module: "Sites", icon: MapPinned },
 ];
 const purchaseNavigation: NavItem[] = [
-  { name: "Purchase Orders", href: "/pos", icon: ShoppingCart },
-  { name: "GRN", href: "/grn", icon: Truck },
-  { name: "Bills", href: "/bills", icon: FileText },
-  { name: "Payments", href: "/payments", icon: Wallet },
+  { name: "Purchase Orders", href: "/pos", module: "Purchase Orders", icon: ShoppingCart },
+  { name: "GRN", href: "/grn", module: "GRN", icon: Truck },
+  { name: "Bills", href: "/bills", module: "Bills", icon: FileText },
+  { name: "Payments", href: "/payments", module: "Payments", icon: Wallet },
 ];
 const vendorNavigation: NavItem[] = [
-  { name: "Vendor List", href: "/vendors", icon: Users },
-  { name: "Vendor Rate List", href: "/vendor-rate-list", icon: BookOpen },
-  { name: "Rate Comparison", href: "/rate-comparison", icon: BarChart3 },
+  { name: "Vendor List", href: "/vendors", module: "Vendors", icon: Users },
+  { name: "Vendor Rate List", href: "/vendor-rate-list", module: "Vendors", icon: BookOpen },
+  { name: "Rate Comparison", href: "/rate-comparison", module: "Vendors", icon: BarChart3 },
 ];
 const inventoryNavigation: NavItem[] = [
-  { name: "Materials", href: "/materials", icon: Package },
-  { name: "Stock Management", href: "/stock", icon: Boxes },
-  { name: "Rate History", href: "/rate-history", icon: BookOpen },
+  { name: "Materials", href: "/materials", module: "Materials", icon: Package },
+  { name: "Stock Management", href: "/stock", module: "Stock", icon: Boxes },
+  { name: "Rate History", href: "/rate-history", module: "Stock", icon: BookOpen },
 ];
 const financeNavigation: NavItem[] = [
-  { name: "Vendor Ledger", href: "/vendor-ledger", icon: BookOpen },
-  { name: "Vendor Statement", href: "/vendor-statement", icon: FileText },
-  { name: "Vendor Payables", href: "/vendor-payables", icon: Wallet },
+  { name: "Vendor Ledger", href: "/vendor-ledger", module: "Vendors", icon: BookOpen },
+  { name: "Vendor Statement", href: "/vendor-statement", module: "Vendors", icon: FileText },
+  { name: "Vendor Payables", href: "/vendor-payables", module: "Vendors", icon: Wallet },
 ];
 const analyticsNavigation: NavItem[] = [
-  { name: "Cost Analysis", href: "/cost-analysis", icon: BarChart3 },
+  { name: "Cost Analysis", href: "/cost-analysis", module: "Reports", icon: BarChart3 },
 ];
 const reportsNavigation: NavItem[] = [
-  { name: "Reports", href: "/reports", icon: PieChart },
+  { name: "Reports", href: "/reports", module: "Reports", icon: PieChart },
 ];
 
 function NavLink({
@@ -155,16 +158,31 @@ function NavSection({
 export function Sidebar() {
   const [location] = useLocation();
   const { userProfile } = useStore();
+  const { canView, permissionMapLoading } = usePermissions();
   const [isMobile, setIsMobile] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const purchaseActive = purchaseNavigation.some(
+  const filterVisibleItems = useMemo(
+    () => (items: NavItem[]) => items.filter((item) => canView(item.module)),
+    [canView],
+  );
+
+  const visibleDashboardItems = filterVisibleItems(dashboardNavigation);
+  const visibleSiteItems = filterVisibleItems(siteNavigation);
+  const visiblePurchaseItems = filterVisibleItems(purchaseNavigation);
+  const visibleVendorItems = filterVisibleItems(vendorNavigation);
+  const visibleInventoryItems = filterVisibleItems(inventoryNavigation);
+  const visibleFinanceItems = filterVisibleItems(financeNavigation);
+  const visibleAnalyticsItems = filterVisibleItems(analyticsNavigation);
+  const visibleReportsItems = filterVisibleItems(reportsNavigation);
+
+  const purchaseActive = visiblePurchaseItems.some(
     (i) => location === i.href || location.startsWith("/purchase-orders"),
   );
-  const vendorActive = vendorNavigation.some((i) => location === i.href);
-  const inventoryActive = inventoryNavigation.some((i) => location === i.href);
-  const financeActive = financeNavigation.some((i) => location === i.href);
-  const analyticsActive = analyticsNavigation.some((i) => location === i.href);
+  const vendorActive = visibleVendorItems.some((i) => location === i.href);
+  const inventoryActive = visibleInventoryItems.some((i) => location === i.href);
+  const financeActive = visibleFinanceItems.some((i) => location === i.href);
+  const analyticsActive = visibleAnalyticsItems.some((i) => location === i.href);
 
   const [purchaseOpen, setPurchaseOpen] = useState(true);
   const [vendorOpen, setVendorOpen] = useState(vendorActive);
@@ -217,7 +235,7 @@ export function Sidebar() {
         active: purchaseActive,
         open: purchaseOpen,
         setOpen: setPurchaseOpen,
-        items: purchaseNavigation,
+        items: visiblePurchaseItems,
       },
       {
         key: "vendors",
@@ -226,7 +244,7 @@ export function Sidebar() {
         active: vendorActive,
         open: vendorOpen,
         setOpen: setVendorOpen,
-        items: vendorNavigation,
+        items: visibleVendorItems,
       },
       {
         key: "inventory",
@@ -235,7 +253,7 @@ export function Sidebar() {
         active: inventoryActive,
         open: inventoryOpen,
         setOpen: setInventoryOpen,
-        items: inventoryNavigation,
+        items: visibleInventoryItems,
       },
       {
         key: "finance",
@@ -244,7 +262,7 @@ export function Sidebar() {
         active: financeActive,
         open: financeOpen,
         setOpen: setFinanceOpen,
-        items: financeNavigation,
+        items: visibleFinanceItems,
       },
       {
         key: "analytics",
@@ -253,7 +271,7 @@ export function Sidebar() {
         active: analyticsActive,
         open: analyticsOpen,
         setOpen: setAnalyticsOpen,
-        items: analyticsNavigation,
+        items: visibleAnalyticsItems,
       },
     ],
     [
@@ -267,6 +285,11 @@ export function Sidebar() {
       financeOpen,
       analyticsActive,
       analyticsOpen,
+      visiblePurchaseItems,
+      visibleVendorItems,
+      visibleInventoryItems,
+      visibleFinanceItems,
+      visibleAnalyticsItems,
     ],
   );
 
@@ -349,7 +372,7 @@ export function Sidebar() {
               <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                 Overview
               </p>
-              {[...dashboardNavigation, ...siteNavigation].map((item) => (
+              {[...visibleDashboardItems, ...visibleSiteItems].map((item) => (
                 <NavLink
                   key={item.name}
                   item={item}
@@ -359,7 +382,7 @@ export function Sidebar() {
               ))}
             </div>
 
-            {sections.map((section) => (
+            {sections.filter((section) => section.items.length > 0).map((section) => (
               <div key={section.key} className="space-y-1.5">
                 <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                   {section.title}
@@ -387,7 +410,7 @@ export function Sidebar() {
               <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">
                 Administration
               </p>
-              {reportsNavigation.map((item) => (
+              {(permissionMapLoading ? [] : visibleReportsItems).map((item) => (
                 <NavLink
                   key={item.name}
                   item={item}
