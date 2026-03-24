@@ -5,6 +5,7 @@ import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, type Permiss
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
   materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
+  auditLogs,
   type Site, type InsertSite,
   type Vendor, type InsertVendor,
   type Material, type InsertMaterial,
@@ -21,7 +22,8 @@ import {
   type VendorMaterialRate,
   type User, type InsertUser,
   type UserProfile, type InsertUserProfile,
-  type SystemSettings, type InsertSystemSettings
+  type SystemSettings, type InsertSystemSettings,
+  type AuditLog, type InsertAuditLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -111,6 +113,8 @@ export interface IStorage {
   createDatabaseBackup(): Promise<{ fileName: string; filePath: string }>;
   listBackups(): Promise<string[]>;
   resetDemoData(): Promise<void>;
+  createAuditLog(entry: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(filters?: { limit?: number; offset?: number; userId?: string; module?: string; startDate?: string; endDate?: string }): Promise<AuditLog[]>;
 }
 
 export type VendorLedgerEntry = {
@@ -1255,6 +1259,42 @@ export class DatabaseStorage implements IStorage {
     const backupDir = join(dataDir, "backups");
     if (!existsSync(backupDir)) return [];
     return readdirSync(backupDir).filter((name) => name.startsWith("backup_") && name.endsWith(".db")).sort().reverse();
+  }
+
+  async createAuditLog(entry: InsertAuditLog): Promise<AuditLog> {
+    const [created] = await db.insert(auditLogs).values({
+      ...entry,
+      userId: entry.userId ?? "",
+      userName: entry.userName ?? "",
+      userRole: entry.userRole ?? "",
+      entityType: entry.entityType ?? "",
+      entityId: entry.entityId ?? "",
+      metadata: entry.metadata ?? "{}",
+      createdAt: entry.createdAt || new Date().toISOString(),
+    }).returning();
+    return created;
+  }
+
+  async getAuditLogs(filters?: { limit?: number; offset?: number; userId?: string; module?: string; startDate?: string; endDate?: string }): Promise<AuditLog[]> {
+    const rows = await db.select().from(auditLogs).orderBy(desc(auditLogs.id));
+    const userId = (filters?.userId || "").trim();
+    const moduleName = (filters?.module || "").trim().toLowerCase();
+    const startDate = (filters?.startDate || "").trim();
+    const endDate = (filters?.endDate || "").trim();
+    const parsedOffset = Number(filters?.offset ?? 0);
+    const parsedLimit = Number(filters?.limit ?? 100);
+    const offset = Number.isFinite(parsedOffset) ? Math.max(0, parsedOffset) : 0;
+    const limit = Number.isFinite(parsedLimit) ? Math.min(500, Math.max(1, parsedLimit)) : 100;
+
+    const filtered = rows.filter((row) => {
+      if (userId && row.userId !== userId) return false;
+      if (moduleName && row.module.trim().toLowerCase() !== moduleName) return false;
+      if (startDate && row.createdAt < startDate) return false;
+      if (endDate && row.createdAt > `${endDate}T23:59:59.999Z`) return false;
+      return true;
+    });
+
+    return filtered.slice(offset, offset + limit);
   }
 
   async resetDemoData(): Promise<void> {

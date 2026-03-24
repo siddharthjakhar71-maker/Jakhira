@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useUserStore } from "@/stores/user-store";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { presetPrimaryColors, useTheme, type AppTheme } from "@/lib/theme";
-import { api } from "@/lib/api";
+import { api, queryKeys, type AuditLog } from "@/lib/api";
 import { MAX_PROFILE_IMAGE_BYTES, formatFileSize } from "@/lib/profile/profile-image";
 import POTemplateDesigner from "./POTemplateDesigner";
 import TemplateStyleDesigner from "./TemplateStyleDesigner";
@@ -44,7 +45,8 @@ type SettingsTab =
   | "po-templates"
   | "template-styles"
   | "system-tools"
-  | "access-control";
+  | "access-control"
+  | "audit-logs";
 
 export default function Settings() {
   const {
@@ -99,6 +101,30 @@ export default function Settings() {
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isAdminUser = isAdminRole(userProfile.role);
+  const [auditFilters, setAuditFilters] = useState({
+    userId: "",
+    module: "",
+    startDate: "",
+    endDate: "",
+  });
+  const [auditPage, setAuditPage] = useState(0);
+  const auditPageSize = 50;
+
+  const auditLogsQuery = useQuery({
+    queryKey: [queryKeys.auditLogs, auditFilters, auditPage],
+    queryFn: () =>
+      api.getAuditLogs({
+        ...auditFilters,
+        userId: auditFilters.userId.trim() || undefined,
+        module: auditFilters.module.trim() || undefined,
+        startDate: auditFilters.startDate || undefined,
+        endDate: auditFilters.endDate || undefined,
+        limit: auditPageSize,
+        offset: auditPage * auditPageSize,
+      }),
+    enabled: isAdminUser,
+  });
+  const auditLogs: AuditLog[] = auditLogsQuery.data || [];
 
   useEffect(() => {
     setProfileData((prev) => ({
@@ -230,6 +256,7 @@ export default function Settings() {
     ...(can("Settings", "view") && isAdminUser
       ? [{ key: "access-control" as const, label: "Access Control", icon: UserCircle }]
       : []),
+    ...(isAdminUser ? [{ key: "audit-logs" as const, label: "Audit Logs", icon: FileSliders }] : []),
   ];
 
   useEffect(() => {
@@ -698,6 +725,102 @@ export default function Settings() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+            {isAdminUser && activeTab === "audit-logs" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Audit Logs</CardTitle>
+                  <CardDescription>
+                    Track critical ERP actions with actor, module, and timestamp details.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2 md:grid-cols-4">
+                    <Input
+                      placeholder="Filter by User ID"
+                      value={auditFilters.userId}
+                      onChange={(e) => {
+                        setAuditPage(0);
+                        setAuditFilters((prev) => ({ ...prev, userId: e.target.value }));
+                      }}
+                    />
+                    <Input
+                      placeholder="Filter by Module"
+                      value={auditFilters.module}
+                      onChange={(e) => {
+                        setAuditPage(0);
+                        setAuditFilters((prev) => ({ ...prev, module: e.target.value }));
+                      }}
+                    />
+                    <Input
+                      type="date"
+                      value={auditFilters.startDate}
+                      onChange={(e) => {
+                        setAuditPage(0);
+                        setAuditFilters((prev) => ({ ...prev, startDate: e.target.value }));
+                      }}
+                    />
+                    <Input
+                      type="date"
+                      value={auditFilters.endDate}
+                      onChange={(e) => {
+                        setAuditPage(0);
+                        setAuditFilters((prev) => ({ ...prev, endDate: e.target.value }));
+                      }}
+                    />
+                  </div>
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full min-w-[900px] text-sm">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Date / Time</th>
+                          <th className="px-3 py-2 text-left">User</th>
+                          <th className="px-3 py-2 text-left">Role</th>
+                          <th className="px-3 py-2 text-left">Module</th>
+                          <th className="px-3 py-2 text-left">Action</th>
+                          <th className="px-3 py-2 text-left">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map((log) => (
+                          <tr key={log.id} className="border-t">
+                            <td className="px-3 py-2 whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                            <td className="px-3 py-2">{log.userName || "System"} {log.userId ? `(#${log.userId})` : ""}</td>
+                            <td className="px-3 py-2">{log.userRole || "-"}</td>
+                            <td className="px-3 py-2">{log.module}</td>
+                            <td className="px-3 py-2">{log.action}</td>
+                            <td className="px-3 py-2">{log.description}</td>
+                          </tr>
+                        ))}
+                        {!auditLogsQuery.isLoading && auditLogs.length === 0 && (
+                          <tr>
+                            <td className="px-3 py-4 text-muted-foreground" colSpan={6}>
+                              No logs found for the selected filters.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={() => setAuditPage((prev) => Math.max(0, prev - 1))}
+                      disabled={auditPage === 0}
+                    >
+                      Previous
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Page {auditPage + 1}</p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setAuditPage((prev) => prev + 1)}
+                      disabled={auditLogs.length < auditPageSize}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </>
         </div>
