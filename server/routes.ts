@@ -3,7 +3,7 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
-import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLE_LIST, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import { getSessionUser, requireAuth } from "./auth-middleware";
 import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
 
@@ -258,6 +258,19 @@ export async function registerRoutes(
   });
 
   // Access Control (inside Settings)
+  app.use("/api/access-control", async (req, res, next) => {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if ((currentUser.role || "").trim().toLowerCase() !== ERP_ROLES.ADMIN.toLowerCase()) {
+      return res.status(403).json({ message: "Only Admin can manage Access Control users" });
+    }
+
+    return next();
+  });
+
   app.get("/api/access-control/users", async (_req, res) => {
     const users = await storage.getUsers();
     res.json(users.map((user) => sanitizeUser(user)));
@@ -271,7 +284,7 @@ export async function registerRoutes(
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
-    if (role !== ERP_ROLES.ADMIN && role !== ERP_ROLES.VIEWER) {
+    if (!ERP_ROLE_LIST.includes(role)) {
       return res.status(400).json({ message: "Unsupported role" });
     }
 
@@ -288,6 +301,19 @@ export async function registerRoutes(
 
   app.patch("/api/access-control/users/:id", async (req, res) => {
     const targetId = Number(req.params.id);
+    if (!Number.isFinite(targetId) || targetId <= 0) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    if (typeof req.body?.role === "string" && !ERP_ROLE_LIST.includes(req.body.role.trim())) {
+      return res.status(400).json({ message: "Unsupported role" });
+    }
+
+    const targetUser = await storage.getUserById(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     const payload: Record<string, unknown> = {};
     if (typeof req.body?.name === "string") payload.name = req.body.name.trim();
     if (typeof req.body?.email === "string") payload.email = req.body.email.trim().toLowerCase();
@@ -298,6 +324,42 @@ export async function registerRoutes(
     const updated = await storage.updateUser(targetId, payload);
     if (!updated) return res.status(404).json({ message: "User not found" });
     res.json(sanitizeUser(updated));
+  });
+
+  app.delete("/api/access-control/users/:id", async (req, res) => {
+    const targetId = Number(req.params.id);
+    if (!Number.isFinite(targetId) || targetId <= 0) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (currentUser.id === targetId) {
+      return res.status(400).json({ message: "You cannot delete your own account" });
+    }
+
+    const targetUser = await storage.getUserById(targetId);
+    if (!targetUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isTargetAdmin = (targetUser.role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase();
+    if (isTargetAdmin && targetUser.isActive) {
+      const activeAdminCount = await storage.countActiveAdmins();
+      if (activeAdminCount <= 1) {
+        return res.status(400).json({ message: "Cannot delete the last active Admin account" });
+      }
+    }
+
+    const deleted = await storage.deleteUser(targetId);
+    if (!deleted) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.json({ success: true, message: "User deleted successfully" });
   });
 
   app.get("/api/access-control/permissions/:role", async (req, res) => {

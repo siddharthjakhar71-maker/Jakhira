@@ -95,6 +95,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
+  countActiveAdmins(excludingUserId?: number): Promise<number>;
   ensureDefaultAdminUser(): Promise<void>;
   getUserProfiles(): Promise<UserProfile[]>;
   createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
@@ -1056,6 +1058,21 @@ export class DatabaseStorage implements IStorage {
     payload.updatedAt = new Date().toISOString();
     const [result] = await db.update(users).set(payload).where(eq(users.id, id)).returning();
     return result;
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const deleted = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
+    return deleted.length > 0;
+  }
+
+  async countActiveAdmins(excludingUserId?: number): Promise<number> {
+    const records = await db.select().from(users);
+    return records.filter((user) => {
+      if (excludingUserId && user.id === excludingUserId) {
+        return false;
+      }
+      return Boolean(user.isActive) && (user.role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase();
+    }).length;
   }
 
   async ensureDefaultAdminUser(): Promise<void> {

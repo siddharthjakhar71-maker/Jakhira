@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "@shared/schema";
-import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES } from "@shared/permissions";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, buildRolePermissionMap, type PermissionAction, type PermissionModule } from "@shared/permissions";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { hashPassword, isPasswordHashed } from "./auth";
@@ -567,16 +567,28 @@ sqlite.exec(`
   );
 `);
 
-sqlite.exec("DELETE FROM role_permissions WHERE role IN ('Admin', 'Viewer');");
-
 const modulePermissions = sqlite
-  .prepare("SELECT id, module, action FROM permissions WHERE module IN (?, ?, ?)")
+  .prepare("SELECT id, module, action FROM permissions WHERE module IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
   .all(...ERP_PERMISSION_MODULES) as Array<{ id: number; module: string; action: string }>;
 
-for (const permission of modulePermissions) {
-  sqlite.prepare("INSERT OR IGNORE INTO role_permissions (role, permission_id) VALUES (?, ?)").run(ERP_ROLES.ADMIN, permission.id);
-  if (permission.action === "view") {
-    sqlite.prepare("INSERT OR IGNORE INTO role_permissions (role, permission_id) VALUES (?, ?)").run(ERP_ROLES.VIEWER, permission.id);
+const roleList = Object.values(ERP_ROLES);
+for (const role of roleList) {
+  const existing = sqlite
+    .prepare("SELECT COUNT(*) as c FROM role_permissions WHERE role = ?")
+    .get(role) as { c: number };
+
+  if (existing.c > 0) {
+    continue;
+  }
+
+  const defaultMap = buildRolePermissionMap(role);
+  for (const permission of modulePermissions) {
+    const moduleName = permission.module as PermissionModule;
+    const actionName = permission.action as PermissionAction;
+    if (!defaultMap[moduleName]?.[actionName]) {
+      continue;
+    }
+    sqlite.prepare("INSERT OR IGNORE INTO role_permissions (role, permission_id) VALUES (?, ?)").run(role, permission.id);
   }
 }
 
