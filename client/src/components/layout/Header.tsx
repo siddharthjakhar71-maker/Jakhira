@@ -139,6 +139,7 @@ export function Header() {
   const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
   const userName = useUserStore((store) => store.name) || userProfile.name?.trim() || "User";
   const avatarUrl = useUserStore((store) => store.avatar) || userProfile.avatarUrl?.trim() || "";
+  const userRole = userProfile.role?.trim() || "User";
 
   return (
     <header className="erp-header-shell">
@@ -292,8 +293,11 @@ export function Header() {
                     fallbackClassName="rounded-xl text-xs"
                   />
                   <span className="hidden min-w-0 text-left md:block">
-                    <span className="block truncate text-sm font-medium leading-none">
+                    <span className="block truncate text-sm font-medium leading-tight">
                       {userName}
+                    </span>
+                    <span className="block truncate pt-0.5 text-xs font-medium text-muted-foreground/90">
+                      {userRole}
                     </span>
                   </span>
                 </Button>
@@ -308,6 +312,9 @@ export function Header() {
                     />
                     <div className="min-w-0">
                       <div className="truncate font-medium">{userName}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {userRole}
+                      </div>
                     </div>
                   </div>
                 </DropdownMenuLabel>
