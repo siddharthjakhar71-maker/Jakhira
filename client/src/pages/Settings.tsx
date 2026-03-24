@@ -42,7 +42,8 @@ type SettingsTab =
   | "appearance"
   | "po-templates"
   | "template-styles"
-  | "system-tools";
+  | "system-tools"
+  | "access-control";
 
 export default function Settings() {
   const {
@@ -51,6 +52,12 @@ export default function Settings() {
     changePassword,
     logout,
     systemSettings,
+    accessControlUsers,
+    createAccessControlUser,
+    updateAccessControlUser,
+    can,
+    viewerPermissionMap,
+    updateViewerPermissions,
   } = useStore();
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme();
   const { toast } = useToast();
@@ -73,6 +80,13 @@ export default function Settings() {
   const setAvatar = useUserStore((store) => store.setAvatar);
   const removeAvatar = useUserStore((store) => store.removeAvatar);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [newUser, setNewUser] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    role: "Viewer" as "Admin" | "Viewer",
+  });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -203,7 +217,24 @@ export default function Settings() {
     { key: "po-templates" as const, label: "PO Templates", icon: FileSliders },
     { key: "template-styles" as const, label: "Template Styles", icon: Layout },
     { key: "system-tools" as const, label: "System Tools", icon: Database },
+    ...(can("Settings", "view") && (userProfile.role || "").toLowerCase() === "admin"
+      ? [{ key: "access-control" as const, label: "Access Control", icon: UserCircle }]
+      : []),
   ];
+
+  const handleCreateUser = async () => {
+    await createAccessControlUser(newUser);
+    setNewUser({ name: "", email: "", phone: "", password: "", role: "Viewer" });
+    toast({ title: "User created" });
+  };
+
+  const handleTogglePermission = async (moduleName: string, action: string) => {
+    const next = JSON.parse(JSON.stringify(viewerPermissionMap || {}));
+    next[moduleName] = next[moduleName] || {};
+    next[moduleName][action] = !Boolean(next[moduleName][action]);
+    await updateViewerPermissions(next);
+    toast({ title: "Viewer permissions updated" });
+  };
 
   return (
     <AppLayout>
@@ -541,6 +572,90 @@ export default function Settings() {
 
             {activeTab === "po-templates" && <POTemplateDesigner />}
             {activeTab === "template-styles" && <TemplateStyleDesigner />}
+            {activeTab === "access-control" && (
+              <div className="grid gap-4 xl:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Users</CardTitle>
+                    <CardDescription>Create and manage Admin/Viewer users.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <Input placeholder="Name" value={newUser.name} onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))} />
+                      <Input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))} />
+                      <Input placeholder="Phone" value={newUser.phone} onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))} />
+                      <Input type="password" placeholder="Password" value={newUser.password} onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Select value={newUser.role} onValueChange={(v: "Admin" | "Viewer") => setNewUser((prev) => ({ ...prev, role: v }))}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                          <SelectItem value="Viewer">Viewer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={handleCreateUser}>Create User</Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {accessControlUsers.map((user) => (
+                        <div key={user.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-2">
+                          <div>
+                            <div className="font-medium">{user.name} ({user.role})</div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateAccessControlUser(user.id, { role: user.role === "Admin" ? "Viewer" : "Admin" })}
+                            >
+                              Switch Role
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateAccessControlUser(user.id, { isActive: user.isActive ? 0 : 1 })}
+                            >
+                              {user.isActive ? "Deactivate" : "Activate"}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Viewer Module Permissions</CardTitle>
+                    <CardDescription>Toggle safe module-level actions for Viewer role.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(viewerPermissionMap || {}).map(([moduleName, actions]) => (
+                      <div key={moduleName} className="rounded border p-2">
+                        <p className="mb-2 text-sm font-semibold">{moduleName}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(actions || {}).map(([action, allowed]) => (
+                            <Button
+                              key={`${moduleName}-${action}`}
+                              type="button"
+                              size="sm"
+                              variant={allowed ? "default" : "outline"}
+                              onClick={() => handleTogglePermission(moduleName, action)}
+                            >
+                              {action}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </>
         </div>
       </div>

@@ -81,6 +81,7 @@ export function Header() {
     siteStocks,
     materials,
     logout,
+    can,
   } = useStore();
   const { resolvedTheme, setTheme } = useTheme();
   const [location] = useLocation();
@@ -173,28 +174,38 @@ export function Header() {
           </div>
 
           <div className="hidden items-center gap-2 lg:flex lg:self-start">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="erp-header-button-primary">
-                  <Plus className="h-4 w-4" />
-                  New
-                  <ChevronDown className="h-4 w-4 opacity-70" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-2xl">
-                {quickCreateItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link key={item.href} href={item.href}>
-                      <DropdownMenuItem className="gap-2">
-                        <Icon className="h-4 w-4" />
-                        {item.label}
-                      </DropdownMenuItem>
-                    </Link>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {can("Purchase Orders", "create") || can("GRN", "create") || can("Bills", "create") || can("Payments", "create") ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="erp-header-button-primary">
+                    <Plus className="h-4 w-4" />
+                    New
+                    <ChevronDown className="h-4 w-4 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+                  {quickCreateItems
+                    .filter((item) => {
+                      if (item.href.includes("purchase-orders")) return can("Purchase Orders", "create");
+                      if (item.href.includes("/grn/")) return can("GRN", "create");
+                      if (item.href.includes("/bills/")) return can("Bills", "create");
+                      if (item.href.includes("/payments/")) return can("Payments", "create");
+                      return false;
+                    })
+                    .map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link key={item.href} href={item.href}>
+                          <DropdownMenuItem className="gap-2">
+                            <Icon className="h-4 w-4" />
+                            {item.label}
+                          </DropdownMenuItem>
+                        </Link>
+                      );
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
         </div>
 

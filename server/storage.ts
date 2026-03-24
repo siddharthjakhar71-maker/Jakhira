@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { hashPassword, isPasswordHashed } from "./auth";
 import { eq, and, inArray, desc } from "drizzle-orm";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
   materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
@@ -100,6 +101,8 @@ export interface IStorage {
   updateUserProfile(id: number, profile: Partial<InsertUserProfile>): Promise<UserProfile | undefined>;
   ensureDefaultUserProfile(): Promise<void>;
   userHasPermission(role: string, moduleName: string, action: string): Promise<boolean>;
+  getRolePermissionMap(role: string): Promise<PermissionMap>;
+  setRolePermissionMap(role: string, map: PermissionMap): Promise<void>;
 
   getSystemSettings(): Promise<SystemSettings>;
   updateSystemSettings(settings: Partial<InsertSystemSettings>): Promise<SystemSettings>;
@@ -1105,6 +1108,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async userHasPermission(role: string, moduleName: string, action: string): Promise<boolean> {
+    if ((role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase()) {
+      return true;
+    }
+
     const normalizedRole = (role || "").trim();
     if (!normalizedRole) return false;
 
@@ -1122,6 +1129,70 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(rolePermissions.role, normalizedRole), inArray(rolePermissions.permissionId, permissionIds)));
 
     return roleMatches.length > 0;
+  }
+
+  async getRolePermissionMap(role: string): Promise<PermissionMap> {
+    const normalizedRole = (role || "").trim() || ERP_ROLES.VIEWER;
+    const permissionRows = await db.select().from(permissions);
+    const roleRows = await db.select().from(rolePermissions).where(eq(rolePermissions.role, normalizedRole));
+    const allowedPermissionIds = new Set(roleRows.map((row) => row.permissionId));
+
+    const map: PermissionMap = {};
+    for (const moduleName of ERP_PERMISSION_MODULES) {
+      map[moduleName] = {};
+      for (const action of ERP_PERMISSION_ACTIONS) {
+        map[moduleName]![action] = false;
+      }
+    }
+
+    for (const permission of permissionRows) {
+      if (!allowedPermissionIds.has(permission.id)) {
+        continue;
+      }
+      const moduleName = permission.module as PermissionModule;
+      const action = permission.action as PermissionAction;
+      if (!ERP_PERMISSION_MODULES.includes(moduleName) || !ERP_PERMISSION_ACTIONS.includes(action)) {
+        continue;
+      }
+      map[moduleName]![action] = true;
+    }
+
+    return map;
+  }
+
+  async setRolePermissionMap(role: string, map: PermissionMap): Promise<void> {
+    const normalizedRole = (role || "").trim();
+    if (!normalizedRole) {
+      return;
+    }
+
+    const permissionRows = await db.select().from(permissions);
+    const permissionIdByKey = new Map(permissionRows.map((row) => [`${row.module}::${row.action}`, row.id]));
+    const nextPermissionIds: number[] = [];
+
+    for (const moduleName of ERP_PERMISSION_MODULES) {
+      for (const action of ERP_PERMISSION_ACTIONS) {
+        if (!map[moduleName]?.[action]) {
+          continue;
+        }
+        const id = permissionIdByKey.get(`${moduleName}::${action}`);
+        if (id) {
+          nextPermissionIds.push(id);
+        }
+      }
+    }
+
+    await db.delete(rolePermissions).where(eq(rolePermissions.role, normalizedRole));
+    if (nextPermissionIds.length === 0) {
+      return;
+    }
+
+    await db.insert(rolePermissions).values(
+      nextPermissionIds.map((permissionId) => ({
+        role: normalizedRole,
+        permissionId,
+      })),
+    );
   }
 
   async getSystemSettings(): Promise<SystemSettings> {

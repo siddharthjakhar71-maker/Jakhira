@@ -3,7 +3,7 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { assertProfileImageSize, getProfileImageConfig } from "./lib/profile-image";
 import * as XLSX from "xlsx";
-import { PERMISSION_ROUTE_MAP } from "@shared/permissions";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, PERMISSION_ROUTE_MAP, buildRolePermissionMap, canAccess, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import { getSessionUser, requireAuth } from "./auth-middleware";
 import { verifyPassword, hashPassword, isPasswordHashed } from "./auth";
 
@@ -53,6 +53,28 @@ export async function registerRoutes(
       return false;
     }
     return true;
+  };
+
+  const getModuleFromApiPath = (path: string): PermissionModule | undefined => {
+    if (path.startsWith("/api/sites")) return "Sites";
+    if (path.startsWith("/api/vendors")) return "Vendors";
+    if (path.startsWith("/api/materials")) return "Materials";
+    if (path.startsWith("/api/pos")) return "Purchase Orders";
+    if (path.startsWith("/api/grns")) return "GRN";
+    if (path.startsWith("/api/bills")) return "Bills";
+    if (path.startsWith("/api/payments")) return "Payments";
+    if (path.startsWith("/api/site-stock") || path.startsWith("/api/material-issues")) return "Stock";
+    if (path.startsWith("/api/reports")) return "Reports";
+    if (path.startsWith("/api/system-tools") || path.startsWith("/api/po-templates") || path.startsWith("/api/template-styles") || path.startsWith("/api/access-control")) return "Settings";
+    return undefined;
+  };
+
+  const getActionFromMethod = (method: string): PermissionAction => {
+    if (method === "GET") return "view";
+    if (method === "POST") return "create";
+    if (method === "PATCH" || method === "PUT") return "edit";
+    if (method === "DELETE") return "delete";
+    return "view";
   };
 
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -140,6 +162,33 @@ export async function registerRoutes(
   });
 
   app.use("/api", (req, res, next) => requireAuth()(req, res, next));
+  app.use("/api", async (req, res, next) => {
+    if (req.path.startsWith("/auth/")) {
+      return next();
+    }
+
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if ((user.role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase()) {
+      return next();
+    }
+
+    const moduleName = getModuleFromApiPath(`/api${req.path}`);
+    if (!moduleName) {
+      return next();
+    }
+
+    const action = getActionFromMethod(req.method);
+    const allowed = await storage.userHasPermission(user.role, moduleName, action);
+    if (!allowed) {
+      return res.status(403).json({ message: `Permission denied: ${moduleName}.${action}` });
+    }
+
+    return next();
+  });
 
   app.post("/api/auth/logout", async (req, res) => {
     req.session.destroy((error) => {
@@ -206,6 +255,74 @@ export async function registerRoutes(
     }
     await storage.updateUser(user.id, { password: hashPassword(newPassword) });
     return res.json({ success: true, message: "Password changed successfully" });
+  });
+
+  // Access Control (inside Settings)
+  app.get("/api/access-control/users", async (_req, res) => {
+    const users = await storage.getUsers();
+    res.json(users.map((user) => sanitizeUser(user)));
+  });
+
+  app.post("/api/access-control/users", async (req, res) => {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password.trim() : "";
+    const role = typeof req.body?.role === "string" ? req.body.role.trim() : ERP_ROLES.VIEWER;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+    if (role !== ERP_ROLES.ADMIN && role !== ERP_ROLES.VIEWER) {
+      return res.status(400).json({ message: "Unsupported role" });
+    }
+
+    const created = await storage.createUser({
+      name: typeof req.body?.name === "string" ? req.body.name.trim() : email,
+      email,
+      phone: typeof req.body?.phone === "string" ? req.body.phone.trim() : "",
+      password,
+      role,
+      isActive: Number(req.body?.isActive ?? 1) ? 1 : 0,
+    });
+    res.json(sanitizeUser(created));
+  });
+
+  app.patch("/api/access-control/users/:id", async (req, res) => {
+    const targetId = Number(req.params.id);
+    const payload: Record<string, unknown> = {};
+    if (typeof req.body?.name === "string") payload.name = req.body.name.trim();
+    if (typeof req.body?.email === "string") payload.email = req.body.email.trim().toLowerCase();
+    if (typeof req.body?.phone === "string") payload.phone = req.body.phone.trim();
+    if (typeof req.body?.role === "string") payload.role = req.body.role.trim();
+    if (typeof req.body?.isActive !== "undefined") payload.isActive = Number(req.body?.isActive) ? 1 : 0;
+    if (typeof req.body?.password === "string" && req.body.password.trim()) payload.password = hashPassword(req.body.password.trim());
+    const updated = await storage.updateUser(targetId, payload);
+    if (!updated) return res.status(404).json({ message: "User not found" });
+    res.json(sanitizeUser(updated));
+  });
+
+  app.get("/api/access-control/permissions/:role", async (req, res) => {
+    const role = req.params.role;
+    const map = await storage.getRolePermissionMap(role);
+    res.json({ role, modules: ERP_PERMISSION_MODULES, actions: ERP_PERMISSION_ACTIONS, map });
+  });
+
+  app.put("/api/access-control/permissions/:role", async (req, res) => {
+    const role = req.params.role;
+    if (role === ERP_ROLES.ADMIN) {
+      return res.status(400).json({ message: "Admin permissions are fixed to full access" });
+    }
+
+    const incomingMap = (req.body?.map || {}) as PermissionMap;
+    const safeMap: PermissionMap = buildRolePermissionMap(ERP_ROLES.VIEWER);
+    for (const moduleName of ERP_PERMISSION_MODULES) {
+      for (const action of ERP_PERMISSION_ACTIONS) {
+        safeMap[moduleName]![action] = canAccess(incomingMap, role, moduleName, action);
+      }
+    }
+
+    await storage.setRolePermissionMap(role, safeMap);
+    const updated = await storage.getRolePermissionMap(role);
+    res.json({ role, map: updated });
   });
 
   // Sites

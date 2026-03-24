@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, queryKeys } from './api';
+import { api, queryKeys, type AccessControlUser, type AccessPermissionMap } from './api';
+import { buildRolePermissionMap, canAccess, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from '@shared/permissions';
 
 export type Site = { id: number; siteName: string; projectName: string; siteCode: string; poPrefix?: string; billingCode?: string; address: string; city: string; state: string; pincode: string; contactPerson: string; phone: string; status: string; createdAt?: string; name: string; location: string; billingName?: string; billTo?: string; shipTo?: string };
 export type Vendor = { id: number; name: string; gst: string | null; contactPerson: string | null; phone: string | null; address: string | null; email: string | null; openingBalance: number; openingDate: string; };
@@ -56,6 +57,8 @@ type StoreContextType = {
   siteStocks: SiteStockEntry[]; updateSiteStock: (siteId: string, materialId: string, receivedDelta: number, issuedDelta: number) => void;
   rateHistory: RateHistoryEntry[]; addRateHistory: (entry: any) => void;
   vendorMaterialRates: VendorMaterialRateEntry[]; upsertVendorMaterialRate: (vendorId: string, materialId: string, rate: number) => void; deleteVendorMaterialRate: (id: number) => void;
+  accessControlUsers: AccessControlUser[]; createAccessControlUser: (user: Partial<AccessControlUser> & { password: string }) => Promise<void>; updateAccessControlUser: (id: number, user: Partial<AccessControlUser> & { password?: string }) => Promise<void>;
+  permissionMap: PermissionMap; viewerPermissionMap: PermissionMap; can: (module: PermissionModule, action: PermissionAction) => boolean; updateViewerPermissions: (map: AccessPermissionMap) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -101,6 +104,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const rateHistoryQuery = useQuery({ queryKey: queryKeys.rateHistory, queryFn: api.getRateHistory, enabled: isAuthenticated });
   const vendorMaterialRatesQuery = useQuery({ queryKey: queryKeys.vendorMaterialRates, queryFn: api.getVendorMaterialRates, enabled: isAuthenticated });
   const systemSettingsQuery = useQuery({ queryKey: queryKeys.systemSettings, queryFn: api.getSystemSettings, enabled: isAuthenticated });
+  const currentRole = (meQuery.data?.user?.role || defaultProfile.role) as "Admin" | "Viewer";
+  const accessControlUsersQuery = useQuery({ queryKey: ['access-control', 'users'], queryFn: api.getAccessControlUsers, enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
+  const rolePermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', currentRole], queryFn: () => api.getRolePermissions(currentRole), enabled: isAuthenticated });
+  const viewerPermissionsQuery = useQuery({ queryKey: ['access-control', 'permissions', ERP_ROLES.VIEWER], queryFn: () => api.getRolePermissions("Viewer"), enabled: isAuthenticated && currentRole === ERP_ROLES.ADMIN });
 
   const sites: Site[] = sitesQuery.data || [];
   const vendors: Vendor[] = vendorsQuery.data || [];
@@ -117,8 +124,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const rateHistory: RateHistoryEntry[] = rateHistoryQuery.data || [];
   const vendorMaterialRates: VendorMaterialRateEntry[] = vendorMaterialRatesQuery.data || [];
   const systemSettings: SystemSettings | null = systemSettingsQuery.data || null;
+  const accessControlUsers: AccessControlUser[] = accessControlUsersQuery.data || [];
+  const permissionMap: PermissionMap = useMemo(() => {
+    const mapFromServer = rolePermissionsQuery.data?.map as PermissionMap | undefined;
+    if (mapFromServer) return mapFromServer;
+    return buildRolePermissionMap(userProfile.role || ERP_ROLES.VIEWER);
+  }, [rolePermissionsQuery.data?.map, userProfile.role]);
+  const viewerPermissionMap: PermissionMap = useMemo(() => {
+    const mapFromServer = viewerPermissionsQuery.data?.map as PermissionMap | undefined;
+    if (mapFromServer) return mapFromServer;
+    return buildRolePermissionMap(ERP_ROLES.VIEWER);
+  }, [viewerPermissionsQuery.data?.map]);
 
   const isLoading = sitesQuery.isLoading || vendorsQuery.isLoading || materialsQuery.isLoading || posQuery.isLoading || grnsQuery.isLoading || billsQuery.isLoading || paymentsQuery.isLoading;
+  const can = (moduleName: PermissionModule, action: PermissionAction) => canAccess(permissionMap, userProfile.role, moduleName, action);
+  const assertCan = (moduleName: PermissionModule, action: PermissionAction) => {
+    if (!can(moduleName, action)) {
+      throw new Error(`Permission denied: ${moduleName}.${action}`);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -170,19 +194,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const invalidate = (key: readonly string[]) => queryClient.invalidateQueries({ queryKey: key });
 
-  const addSite = async (s: Omit<Site, 'id'>) => { await api.createSite(s); invalidate(queryKeys.sites); };
-  const updateSite = async (id: number, s: Partial<Site>) => { await api.updateSite(id, s); invalidate(queryKeys.sites); };
-  const deleteSite = async (id: number) => { await api.deleteSite(id); invalidate(queryKeys.sites); };
+  const addSite = async (s: Omit<Site, 'id'>) => { assertCan("Sites", "create"); await api.createSite(s); invalidate(queryKeys.sites); };
+  const updateSite = async (id: number, s: Partial<Site>) => { assertCan("Sites", "edit"); await api.updateSite(id, s); invalidate(queryKeys.sites); };
+  const deleteSite = async (id: number) => { assertCan("Sites", "delete"); await api.deleteSite(id); invalidate(queryKeys.sites); };
   const addSites = async (newSites: Omit<Site, 'id'>[]) => { await api.createSitesBatch(newSites); invalidate(queryKeys.sites); };
 
-  const addVendor = async (v: Omit<Vendor, 'id'>) => { await api.createVendor(v); invalidate(queryKeys.vendors); };
-  const updateVendor = async (id: number, v: Partial<Vendor>) => { await api.updateVendor(id, v); invalidate(queryKeys.vendors); };
-  const deleteVendor = async (id: number) => { await api.deleteVendor(id); invalidate(queryKeys.vendors); };
+  const addVendor = async (v: Omit<Vendor, 'id'>) => { assertCan("Vendors", "create"); await api.createVendor(v); invalidate(queryKeys.vendors); };
+  const updateVendor = async (id: number, v: Partial<Vendor>) => { assertCan("Vendors", "edit"); await api.updateVendor(id, v); invalidate(queryKeys.vendors); };
+  const deleteVendor = async (id: number) => { assertCan("Vendors", "delete"); await api.deleteVendor(id); invalidate(queryKeys.vendors); };
   const addVendors = async (newVendors: Omit<Vendor, 'id'>[]) => { await api.createVendorsBatch(newVendors); invalidate(queryKeys.vendors); };
 
-  const addMaterial = async (m: Omit<Material, 'id'>) => { await api.createMaterial(m); invalidate(queryKeys.materials); };
-  const updateMaterial = async (id: number, m: Partial<Material>) => { await api.updateMaterial(id, m); invalidate(queryKeys.materials); };
-  const deleteMaterial = async (id: number) => { await api.deleteMaterial(id); invalidate(queryKeys.materials); };
+  const addMaterial = async (m: Omit<Material, 'id'>) => { assertCan("Materials", "create"); await api.createMaterial(m); invalidate(queryKeys.materials); };
+  const updateMaterial = async (id: number, m: Partial<Material>) => { assertCan("Materials", "edit"); await api.updateMaterial(id, m); invalidate(queryKeys.materials); };
+  const deleteMaterial = async (id: number) => { assertCan("Materials", "delete"); await api.deleteMaterial(id); invalidate(queryKeys.materials); };
   const addMaterials = async (newMaterials: Omit<Material, 'id'>[]) => { await api.createMaterialsBatch(newMaterials); invalidate(queryKeys.materials); };
 
   const addPOTemplate = async (t: any) => { await api.createPOTemplate(t); invalidate(queryKeys.poTemplates); };
@@ -194,6 +218,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const deleteTemplateStyle = async (id: number) => { await api.deleteTemplateStyle(id); invalidate(queryKeys.templateStyles); };
 
   const addPO = async (po: any) => {
+    assertCan("Purchase Orders", "create");
     const createdPO = await api.createPO({ ...po, status: 'Pending' });
     if (po.items && po.vendorId) {
       for (const item of po.items) {
@@ -210,9 +235,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     invalidate(queryKeys.pos);
     invalidate(queryKeys.rateHistory);
   };
-  const updatePO = async (id: number, po: Partial<PO>) => { await api.updatePO(id, po); invalidate(queryKeys.pos); };
-  const deletePO = async (id: number) => { await api.deletePO(id); invalidate(queryKeys.pos); };
-  const updatePOStatus = async (id: number, status: string) => { await api.updatePO(id, { status }); invalidate(queryKeys.pos); };
+  const updatePO = async (id: number, po: Partial<PO>) => { assertCan("Purchase Orders", "edit"); await api.updatePO(id, po); invalidate(queryKeys.pos); };
+  const deletePO = async (id: number) => { assertCan("Purchase Orders", "delete"); await api.deletePO(id); invalidate(queryKeys.pos); };
+  const updatePOStatus = async (id: number, status: string) => { assertCan("Purchase Orders", "approve"); await api.updatePO(id, { status }); invalidate(queryKeys.pos); };
 
   const updatePOStatusBasedOnGRN = async (poDisplayId: string, currentGrns: GRN[]) => {
     const po = pos.find(p => p.displayId === poDisplayId);
@@ -236,6 +261,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const addGRN = async (grn: any) => {
+    assertCan("GRN", "create");
     const newGrn = await api.createGRN({ ...grn, status: 'Pending Bill' });
     const updatedGrns = [...grns, newGrn];
     await updatePOStatusBasedOnGRN(grn.poId, updatedGrns);
@@ -245,6 +271,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const updateGRN = async (id: number, grn: Partial<GRN>) => {
+    assertCan("GRN", "edit");
     await api.updateGRN(id, grn);
     const targetGrn = grns.find(g => g.id === id);
     if (targetGrn) {
@@ -256,6 +283,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteGRN = async (id: number) => {
+    assertCan("GRN", "delete");
     const grn = grns.find(g => g.id === id);
     await api.deleteGRN(id);
     if (grn) {
@@ -267,6 +295,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const addBill = async (bill: any) => {
+    assertCan("Bills", "create");
     await api.createBill({ ...bill, status: 'Unpaid' });
     if (bill.grnId) {
       const grn = grns.find(g => g.displayId === bill.grnId);
@@ -276,9 +305,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     invalidate(queryKeys.grns);
   };
 
-  const updateBill = async (id: number, bill: Partial<Bill>) => { await api.updateBill(id, bill); invalidate(queryKeys.bills); };
+  const updateBill = async (id: number, bill: Partial<Bill>) => { assertCan("Bills", "edit"); await api.updateBill(id, bill); invalidate(queryKeys.bills); };
 
   const deleteBill = async (id: number) => {
+    assertCan("Bills", "delete");
     const bill = bills.find(b => b.id === id);
     await api.deleteBill(id);
     if (bill?.grnId) {
@@ -289,7 +319,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     invalidate(queryKeys.grns);
   };
 
-  const updateBillStatus = async (id: number, status: string) => { await api.updateBill(id, { status }); invalidate(queryKeys.bills); };
+  const updateBillStatus = async (id: number, status: string) => { assertCan("Bills", "approve"); await api.updateBill(id, { status }); invalidate(queryKeys.bills); };
 
   const getNextPaymentDisplayId = () => {
     const maxNum = payments.reduce((max, p) => {
@@ -300,6 +330,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const addPayment = async (payment: any) => {
+    assertCan("Payments", "create");
     const displayId = getNextPaymentDisplayId();
     await api.createPayment({ ...payment, displayId });
     const bill = bills.find(b => b.displayId === payment.billId);
@@ -308,9 +339,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     invalidate(queryKeys.bills);
   };
 
-  const updatePayment = async (id: number, payment: Partial<Payment>) => { await api.updatePayment(id, payment); invalidate(queryKeys.payments); };
+  const updatePayment = async (id: number, payment: Partial<Payment>) => { assertCan("Payments", "edit"); await api.updatePayment(id, payment); invalidate(queryKeys.payments); };
 
   const deletePayment = async (id: number) => {
+    assertCan("Payments", "delete");
     const payment = payments.find(p => p.id === id);
     await api.deletePayment(id);
     if (payment?.billId) {
@@ -330,22 +362,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const addMaterialIssue = async (issue: any) => {
+    assertCan("Stock", "create");
     const displayId = getNextIssueDisplayId();
     await api.createMaterialIssue({ ...issue, displayId });
     invalidate(queryKeys.materialIssues);
     invalidate(queryKeys.siteStock);
   };
   const updateMaterialIssue = async (id: number, issue: any) => {
+    assertCan("Stock", "edit");
     await api.updateMaterialIssue(id, issue);
     invalidate(queryKeys.materialIssues);
   };
   const deleteMaterialIssue = async (id: number) => {
+    assertCan("Stock", "delete");
     await api.deleteMaterialIssue(id);
     invalidate(queryKeys.materialIssues);
     invalidate(queryKeys.siteStock);
   };
 
   const updateSiteStock = async (siteId: string, materialId: string, receivedDelta: number, issuedDelta: number) => {
+    assertCan("Stock", "edit");
     await api.updateSiteStock({ siteId, materialId, receivedDelta, issuedDelta });
     invalidate(queryKeys.siteStock);
   };
@@ -356,12 +392,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const upsertVendorMaterialRate = async (vendorId: string, materialId: string, rate: number) => {
+    assertCan("Vendors", "edit");
     await api.upsertVendorMaterialRate({ vendorId, materialId, rate });
     invalidate(queryKeys.vendorMaterialRates);
   };
   const deleteVendorMaterialRate = async (id: number) => {
+    assertCan("Vendors", "delete");
     await api.deleteVendorMaterialRate(id);
     invalidate(queryKeys.vendorMaterialRates);
+  };
+
+  const createAccessControlUser = async (user: Partial<AccessControlUser> & { password: string }) => {
+    assertCan("Settings", "edit");
+    await api.createAccessControlUser(user);
+    await queryClient.invalidateQueries({ queryKey: ['access-control', 'users'] });
+  };
+
+  const updateAccessControlUser = async (id: number, user: Partial<AccessControlUser> & { password?: string }) => {
+    assertCan("Settings", "edit");
+    await api.updateAccessControlUser(id, user);
+    await queryClient.invalidateQueries({ queryKey: ['access-control', 'users'] });
+  };
+
+  const updateViewerPermissions = async (map: AccessPermissionMap) => {
+    assertCan("Settings", "edit");
+    await api.updateRolePermissions("Viewer", map);
+    await queryClient.invalidateQueries({ queryKey: ['access-control', 'permissions', 'Viewer'] });
   };
 
   return (
@@ -384,6 +440,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       siteStocks, updateSiteStock,
       rateHistory, addRateHistory,
       vendorMaterialRates, upsertVendorMaterialRate, deleteVendorMaterialRate,
+      accessControlUsers, createAccessControlUser, updateAccessControlUser,
+      permissionMap, viewerPermissionMap, can, updateViewerPermissions,
       isLoading,
     }}>
       {children}
