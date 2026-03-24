@@ -2,6 +2,7 @@ import React, { createContext, useContext, useMemo, useState, ReactNode } from '
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, queryKeys, type AccessControlUser, type AccessPermissionMap } from './api';
 import { buildRolePermissionMap, canAccess, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from '@shared/permissions';
+import { userStore } from '@/stores/user-store';
 
 export type Site = { id: number; siteName: string; projectName: string; siteCode: string; poPrefix?: string; billingCode?: string; address: string; city: string; state: string; pincode: string; contactPerson: string; phone: string; status: string; createdAt?: string; name: string; location: string; billingName?: string; billTo?: string; shipTo?: string };
 export type Vendor = { id: number; name: string; gst: string | null; contactPerson: string | null; phone: string | null; address: string | null; email: string | null; openingBalance: number; openingDate: string; };
@@ -166,6 +167,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch {
       // no-op: clear local app state even if the server session is already gone.
     }
+    userStore.getState().resetUserState();
     queryClient.setQueryData(['auth', 'me'], { user: null });
     queryClient.removeQueries({ queryKey: queryKeys.profile });
     queryClient.removeQueries({ queryKey: queryKeys.sites });

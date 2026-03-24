@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS vendors (
     name TEXT NOT NULL,
     email TEXT NOT NULL,
     phone TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT NOT NULL DEFAULT '',
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'Admin',
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -296,6 +297,9 @@ const usersColumns = sqlite.prepare("PRAGMA table_info(users)").all() as Array<{
 if (!usersColumns.some((column) => column.name === "phone")) {
   sqlite.exec("ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT '';");
 }
+if (!usersColumns.some((column) => column.name === "avatar_url")) {
+  sqlite.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT '';");
+}
 if (!usersColumns.some((column) => column.name === "role")) {
   sqlite.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'Admin';");
 }
@@ -313,6 +317,22 @@ const userProfileColumns = sqlite.prepare("PRAGMA table_info(user_profile)").all
 if (!userProfileColumns.some((column) => column.name === "avatar_url")) {
   sqlite.exec("ALTER TABLE user_profile ADD COLUMN avatar_url TEXT NOT NULL DEFAULT '';");
 }
+sqlite.exec(`
+  UPDATE users
+  SET avatar_url = (
+    SELECT up.avatar_url
+    FROM user_profile up
+    WHERE LOWER(TRIM(up.email)) = LOWER(TRIM(users.email))
+    LIMIT 1
+  )
+  WHERE COALESCE(NULLIF(users.avatar_url, ''), '') = ''
+    AND EXISTS (
+      SELECT 1
+      FROM user_profile up
+      WHERE LOWER(TRIM(up.email)) = LOWER(TRIM(users.email))
+        AND COALESCE(NULLIF(up.avatar_url, ''), '') <> ''
+    );
+`);
 if (!siteColumns.some((column) => column.name === "created_at")) {
   sqlite.exec("ALTER TABLE sites ADD COLUMN created_at TEXT NOT NULL DEFAULT '';");
 }

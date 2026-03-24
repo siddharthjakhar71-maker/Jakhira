@@ -240,6 +240,7 @@ export const users = sqliteTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull().default(""),
+  avatarUrl: text("avatar_url").notNull().default(""),
   password: text("password").notNull(),
   role: text("role").notNull().default("Admin"),
   isActive: integer("is_active").notNull().default(1),

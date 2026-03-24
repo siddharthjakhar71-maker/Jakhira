@@ -1040,6 +1040,7 @@ export class DatabaseStorage implements IStorage {
       ...user,
       email: user.email.trim().toLowerCase(),
       phone: user.phone ?? "",
+      avatarUrl: user.avatarUrl ?? "",
       password: isPasswordHashed(user.password) ? user.password : hashPassword(user.password),
       role: user.role ?? "Admin",
       isActive: user.isActive ?? 1,

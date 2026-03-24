@@ -29,9 +29,8 @@ export function UserAvatar({
   imageClassName,
 }: UserAvatarProps) {
   const storedName = useUserStore((store) => store.name);
-  const storedAvatar = useUserStore((store) => store.avatar);
   const resolvedName = name?.trim() || storedName || "User";
-  const resolvedImageUrl = imageUrl?.trim() || storedAvatar || "";
+  const resolvedImageUrl = imageUrl?.trim() || "";
   const initials = getInitials(resolvedName);
 
   return (
