@@ -202,7 +202,7 @@ export const api = {
     fetchJSON(`/api/access-control/users/${id}`, { method: "DELETE" }),
   getRolePermissions: (role: string): Promise<{ role: string; modules: string[]; actions: string[]; map: AccessPermissionMap }> =>
     fetchJSON(`/api/access-control/permissions/${role}`),
-  updateRolePermissions: (role: "Viewer", map: AccessPermissionMap): Promise<{ role: string; map: AccessPermissionMap }> =>
+  updateRolePermissions: (role: string, map: AccessPermissionMap): Promise<{ role: string; map: AccessPermissionMap }> =>
     fetchJSON(`/api/access-control/permissions/${role}`, { method: "PUT", body: JSON.stringify({ map }) }),
   importVendorRates: (fileDataBase64: string, fileName: string) =>
     fetchFormDataJSON("/api/vendor-rate-import", {

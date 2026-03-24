@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { ERP_ROLE_LIST } from "./permissions";
 
 export const sites = sqliteTable("sites", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -363,6 +364,8 @@ export const insertVendorMaterialRateSchema = createInsertSchema(vendorMaterialR
 export type VendorMaterialRate = typeof vendorMaterialRates.$inferSelect;
 export type InsertVendorMaterialRate = z.infer<typeof insertVendorMaterialRateSchema>;
 
+export const erpRoleSchema = z.enum(ERP_ROLE_LIST as [string, ...string[]]);
+
 export const insertPOTemplateSchema = createInsertSchema(poTemplates).omit({ id: true });
 export const insertSiteSchema = createInsertSchema(sites).omit({ id: true });
 export const insertVendorSchema = createInsertSchema(vendors).omit({ id: true });
@@ -371,8 +374,12 @@ export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit
 export const insertGrnSchema = createInsertSchema(grns).omit({ id: true });
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
-export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertUserProfileSchema = createInsertSchema(userProfile).omit({ id: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true }).extend({
+  role: erpRoleSchema,
+});
+export const insertUserProfileSchema = createInsertSchema(userProfile).omit({ id: true }).extend({
+  role: erpRoleSchema,
+});
 export const insertMaterialIssueSchema = createInsertSchema(materialIssues).omit({ id: true });
 export const insertSiteStockSchema = createInsertSchema(siteStock).omit({ id: true });
 export const insertStockLedgerSchema = createInsertSchema(stockLedger).omit({ id: true });
