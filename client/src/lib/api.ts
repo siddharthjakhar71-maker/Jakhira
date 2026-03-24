@@ -1,6 +1,3 @@
-import { queryOptions } from "@tanstack/react-query";
-
-
 
 export type BackupSettings = { id: number; backupEnabled: number; backupFrequency: string; backupLocation: string; updatedAt: string };
 

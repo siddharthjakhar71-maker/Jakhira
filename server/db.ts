@@ -11,12 +11,10 @@ function getDataRoot(): string {
     return process.env.APP_DATA_DIR;
   }
 
-  // ✅ Always use local folder for web mode
   return process.cwd();
-}	
+}
 
 const DB_PATH = join(getDataRoot(), "data", "local.db");
-console.log(" DB PATH:", DB_PATH);
 
 mkdirSync(dirname(DB_PATH), { recursive: true });
 

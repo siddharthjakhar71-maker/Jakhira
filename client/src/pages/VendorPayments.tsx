@@ -21,7 +21,7 @@ function getMonthLabel(key: string) {
 }
 
 export default function VendorPayments() {
-  const { vendors, bills, payments, sites, pos, searchQuery } = useStore();
+  const { vendors, bills, payments, sites, searchQuery } = useStore();
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [selectedVendorId, setSelectedVendorId] = useState<string>("all");
   const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
