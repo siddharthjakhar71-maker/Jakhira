@@ -26,6 +26,19 @@ export type VendorPayableResponse = {
   outstanding: number;
 };
 
+export type AccessControlUser = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  role: "Admin" | "Viewer";
+  isActive: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type AccessPermissionMap = Record<string, Record<string, boolean>>;
+
 export type CostAnalysisFilters = {
   siteId?: string;
   vendorId?: string;
@@ -180,6 +193,15 @@ export const api = {
   updateSystemSettings: (data: any): Promise<BackupSettings> => fetchJSON("/api/system-tools/settings", { method: "PATCH", body: JSON.stringify(data) }),
   createBackup: () => fetchJSON("/api/system-tools/backup", { method: "POST" }),
   downloadBackup: () => window.open('/api/system-tools/backup/download', '_blank'),
+  getAccessControlUsers: (): Promise<AccessControlUser[]> => fetchJSON("/api/access-control/users"),
+  createAccessControlUser: (data: Partial<AccessControlUser> & { password: string }) =>
+    fetchJSON("/api/access-control/users", { method: "POST", body: JSON.stringify(data) }),
+  updateAccessControlUser: (id: number, data: Partial<AccessControlUser> & { password?: string }) =>
+    fetchJSON(`/api/access-control/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  getRolePermissions: (role: "Admin" | "Viewer"): Promise<{ role: string; modules: string[]; actions: string[]; map: AccessPermissionMap }> =>
+    fetchJSON(`/api/access-control/permissions/${role}`),
+  updateRolePermissions: (role: "Viewer", map: AccessPermissionMap): Promise<{ role: string; map: AccessPermissionMap }> =>
+    fetchJSON(`/api/access-control/permissions/${role}`, { method: "PUT", body: JSON.stringify({ map }) }),
   importVendorRates: (fileDataBase64: string, fileName: string) =>
     fetchFormDataJSON("/api/vendor-rate-import", {
       method: "POST",
