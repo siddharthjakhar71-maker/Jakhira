@@ -748,22 +748,30 @@ export class DatabaseStorage implements IStorage {
     }
 
     db.transaction((tx) => {
-      const [existingPayment] = tx.select().from(payments).where(eq(payments.id, id)).limit(1);
+      const existingPayment = tx.select().from(payments).where(eq(payments.id, id)).get();
       if (!existingPayment) {
         throw new Error("Payment not found");
       }
 
-      const adjustments = tx.select().from(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id)).orderBy(asc(paymentAdjustments.id));
+      const adjustments = tx
+        .select()
+        .from(paymentAdjustments)
+        .where(eq(paymentAdjustments.paymentId, id))
+        .orderBy(asc(paymentAdjustments.id));
+
       for (const adjustment of adjustments) {
-        const [bill] = tx.select().from(bills).where(eq(bills.id, adjustment.billId)).limit(1);
+        const bill = tx.select().from(bills).where(eq(bills.id, adjustment.billId)).get();
         if (!bill) continue;
-        const billAmount = Number(bill.amount || 0);
+
+        const billAmount = Math.max(Number(bill.amount || 0), 0);
         const currentPaidAmount = Math.min(Math.max(Number(bill.paidAmount || 0), 0), billAmount);
         const adjustmentAmount = Math.max(Number(adjustment.adjustedAmount || 0), 0);
         const nextPaidAmount = Math.max(Math.min(currentPaidAmount - adjustmentAmount, billAmount), 0);
         const nextStatus = nextPaidAmount <= 0 ? "pending" : nextPaidAmount >= billAmount ? "paid" : "partial";
+
         tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id));
       }
+
       tx.delete(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
       tx.delete(payments).where(eq(payments.id, id));
     });
