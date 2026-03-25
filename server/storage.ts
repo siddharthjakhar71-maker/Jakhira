@@ -1,9 +1,9 @@
 import { db } from "./db";
 import { hashPassword, isPasswordHashed } from "./auth";
-import { eq, and, or, inArray, desc, sql, type SQL } from "drizzle-orm";
+import { eq, and, or, inArray, desc, asc, sql, type SQL } from "drizzle-orm";
 import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import {
-  sites, vendors, materials, purchaseOrders, grns, bills, payments, poTemplates, templateStyles, vendorLedgerEntries,
+  sites, vendors, materials, purchaseOrders, grns, bills, payments, paymentAdjustments, poTemplates, templateStyles, vendorLedgerEntries,
   materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
   auditLogs,
   type Site, type InsertSite,
@@ -12,7 +12,7 @@ import {
   type PurchaseOrder, type InsertPurchaseOrder,
   type GRN, type InsertGRN,
   type Bill, type InsertBill,
-  type Payment, type InsertPayment,
+  type Payment, type InsertPayment, type PaymentAdjustment,
   type POTemplate, type InsertPOTemplate,
   type TemplateStyle, type InsertTemplateStyle,
   type MaterialIssue, type InsertMaterialIssue,
@@ -90,6 +90,8 @@ export interface IStorage {
   deleteVendorMaterialRate(id: number): Promise<void>;
 
   getVendorLedger(vendorId: string, startDate?: string, endDate?: string): Promise<VendorLedgerEntry[]>;
+  getVendorLedgerDetails(vendorId: string): Promise<{ bills: Bill[]; payments: Payment[]; ledger: VendorLedgerEntry[] }>;
+  getVendorOutstanding(vendorId: string): Promise<number>;
   getVendorStatement(vendorId: string, month: string): Promise<VendorStatement>;
   getVendorPayables(): Promise<VendorPayable[]>;
   getUsers(): Promise<User[]>;
@@ -625,15 +627,100 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(payments);
   }
   async createPayment(payment: InsertPayment): Promise<Payment> {
-    const [result] = await db.insert(payments).values(payment).returning();
-    return result;
+    const normalizedDate = payment.paymentDate || payment.date || new Date().toISOString().slice(0, 10);
+    const normalizedVendorId = String(payment.vendorId || "").trim();
+    const totalAmount = Number(payment.amount || 0);
+    if (!normalizedVendorId) {
+      throw new Error("vendorId is required");
+    }
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+      throw new Error("Payment amount must be greater than zero");
+    }
+
+    const paymentPayload: InsertPayment = {
+      ...payment,
+      vendorId: normalizedVendorId,
+      paymentDate: normalizedDate,
+      date: normalizedDate,
+      amount: totalAmount,
+    };
+
+    const manualAdjustments = Array.isArray((payment as any).adjustments) ? (payment as any).adjustments : [];
+
+    const createdPayment = await db.transaction(async (tx) => {
+      const [created] = await tx.insert(payments).values(paymentPayload).returning();
+      if (!created) {
+        throw new Error("Unable to create payment");
+      }
+
+      const unpaidBills = await tx
+        .select()
+        .from(bills)
+        .where(and(eq(bills.vendorId, normalizedVendorId), or(eq(bills.status, "pending"), eq(bills.status, "partial"))))
+        .orderBy(asc(bills.date), asc(bills.id));
+
+      let remainingPayment = totalAmount;
+      const billById = new Map(unpaidBills.map((bill) => [bill.id, bill]));
+      const adjustmentPlan = manualAdjustments.length > 0
+        ? manualAdjustments
+            .map((entry: any) => ({
+              billId: Number(entry.billId),
+              adjustedAmount: Number(entry.adjustedAmount || 0),
+            }))
+            .filter((entry: any) => Number.isFinite(entry.billId) && entry.adjustedAmount > 0)
+        : unpaidBills.map((bill) => ({ billId: bill.id, adjustedAmount: Number.POSITIVE_INFINITY }));
+
+      for (const plan of adjustmentPlan) {
+        if (remainingPayment <= 0) break;
+        const bill = billById.get(plan.billId);
+        if (!bill) continue;
+        const billAmount = Number(bill.amount || 0);
+        const paidAmount = Number(bill.paidAmount || 0);
+        const billBalance = Math.max(billAmount - paidAmount, 0);
+        if (billBalance <= 0) continue;
+
+        const adjustedAmount = Math.min(remainingPayment, billBalance, Number(plan.adjustedAmount || 0));
+        const updatedPaidAmount = paidAmount + adjustedAmount;
+        const nextStatus = updatedPaidAmount >= billAmount ? "paid" : "partial";
+        if (adjustedAmount <= 0) continue;
+
+        await tx
+          .update(bills)
+          .set({ paidAmount: updatedPaidAmount, status: nextStatus })
+          .where(eq(bills.id, bill.id));
+
+        await tx.insert(paymentAdjustments).values({
+          paymentId: created.id,
+          billId: bill.id,
+          adjustedAmount,
+        });
+
+        remainingPayment -= adjustedAmount;
+      }
+
+      return created;
+    });
+
+    return createdPayment;
   }
   async updatePayment(id: number, payment: Partial<InsertPayment>): Promise<Payment | undefined> {
     const [result] = await db.update(payments).set(payment).where(eq(payments.id, id)).returning();
     return result;
   }
   async deletePayment(id: number): Promise<void> {
-    await db.delete(payments).where(eq(payments.id, id));
+    await db.transaction(async (tx) => {
+      const adjustments = await tx.select().from(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
+      for (const adjustment of adjustments) {
+        const [bill] = await tx.select().from(bills).where(eq(bills.id, adjustment.billId)).limit(1);
+        if (!bill) continue;
+        const nextPaidAmount = Math.max(Number(bill.paidAmount || 0) - Number(adjustment.adjustedAmount || 0), 0);
+        const billAmount = Number(bill.amount || 0);
+        const nextStatus = nextPaidAmount <= 0 ? "pending" : nextPaidAmount >= billAmount ? "paid" : "partial";
+        await tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id));
+      }
+      await tx.delete(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
+      await tx.delete(payments).where(eq(payments.id, id));
+    });
   }
 
   async getPOTemplates(): Promise<POTemplate[]> {
@@ -761,10 +848,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const vendorBills = await db.select().from(bills).where(eq(bills.vendorId, vendorId));
-    const billDisplayIds = vendorBills.map((bill) => bill.displayId);
-    const vendorPayments = billDisplayIds.length
-      ? await db.select().from(payments).where(inArray(payments.billId, billDisplayIds))
-      : [];
+    const vendorPayments = await db.select().from(payments).where(eq(payments.vendorId, vendorId));
 
     const openingEntries = await db
       .select()
@@ -789,9 +873,9 @@ export class DatabaseStorage implements IStorage {
         credit: 0,
       })),
       ...vendorPayments.map((payment) => ({
-        date: payment.date,
+        date: payment.paymentDate || payment.date,
         type: "payment" as const,
-        reference: payment.displayId,
+        reference: payment.displayId || `PAY-${payment.id}`,
         debit: 0,
         credit: Number(payment.amount || 0),
       })),
@@ -815,6 +899,28 @@ export class DatabaseStorage implements IStorage {
     }
 
     return filtered;
+  }
+
+  async getVendorLedgerDetails(vendorId: string): Promise<{ bills: Bill[]; payments: Payment[]; ledger: VendorLedgerEntry[] }> {
+    const [vendorExists] = await db.select({ id: vendors.id }).from(vendors).where(eq(vendors.id, Number(vendorId))).limit(1);
+    if (!vendorExists) {
+      return { bills: [], payments: [], ledger: [] };
+    }
+
+    const vendorBills = await db.select().from(bills).where(eq(bills.vendorId, vendorId)).orderBy(asc(bills.date), asc(bills.id));
+    const vendorPayments = await db.select().from(payments).where(eq(payments.vendorId, vendorId)).orderBy(asc(payments.paymentDate), asc(payments.id));
+    const ledger = await this.getVendorLedger(vendorId);
+
+    return { bills: vendorBills, payments: vendorPayments, ledger };
+  }
+
+  async getVendorOutstanding(vendorId: string): Promise<number> {
+    const vendorBills = await db.select().from(bills).where(eq(bills.vendorId, vendorId));
+    const totalOutstanding = vendorBills.reduce((sum, bill) => {
+      const balance = Number(bill.amount || 0) - Number(bill.paidAmount || 0);
+      return sum + Math.max(balance, 0);
+    }, 0);
+    return totalOutstanding;
   }
 
   async getVendorStatement(vendorId: string, month: string): Promise<VendorStatement> {

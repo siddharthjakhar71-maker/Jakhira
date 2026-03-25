@@ -891,7 +891,33 @@ export async function registerRoutes(
   });
 
   app.post("/api/payments", async (req, res) => {
-    const result = await storage.createPayment(req.body);
+    const vendorId = typeof req.body?.vendorId === "string" ? req.body.vendorId.trim() : "";
+    const amount = Number(req.body?.amount || 0);
+    const paymentDate = typeof req.body?.paymentDate === "string" && req.body.paymentDate
+      ? req.body.paymentDate
+      : typeof req.body?.date === "string" && req.body.date
+        ? req.body.date
+        : new Date().toISOString().slice(0, 10);
+
+    if (!vendorId) {
+      return res.status(400).json({ message: "vendorId is required" });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ message: "amount must be greater than zero" });
+    }
+
+    let result;
+    try {
+      result = await storage.createPayment({
+        ...req.body,
+        vendorId,
+        amount,
+        paymentDate,
+        date: paymentDate,
+      });
+    } catch (error) {
+      return res.status(400).json({ message: error instanceof Error ? error.message : "Unable to create payment" });
+    }
     await logAuditEvent(storage, await getAuditActor(req), {
       action: "CREATE_PAYMENT",
       module: "Payments",
@@ -932,6 +958,18 @@ export async function registerRoutes(
 
 
   // Vendor Ledger
+  app.get("/api/vendors/:id/ledger", async (req, res) => {
+    const vendorId = req.params.id;
+    const result = await storage.getVendorLedgerDetails(vendorId);
+    res.json(result);
+  });
+
+  app.get("/api/vendors/:id/outstanding", async (req, res) => {
+    const vendorId = req.params.id;
+    const outstanding = await storage.getVendorOutstanding(vendorId);
+    res.json({ vendorId, outstanding });
+  });
+
   app.get("/api/vendor-ledger/:vendorId", async (req, res) => {
     const { vendorId } = req.params;
     const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;

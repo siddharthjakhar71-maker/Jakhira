@@ -11,8 +11,8 @@ export type POItem = { materialId: string; qty: number; rate: number; amount: nu
 export type PO = { id: number; displayId: string; poNumber?: string; siteId?: string; vendorId: string; date: string; expectedDelivery?: string; status: string; items: POItem[]; totalAmount: number; estimatedCartage?: number; estimatedLoadingAmount?: number; otherEstimatedCharges?: number; gstAmount?: number; subTotal?: number; freightAmount?: number; freightGstMode?: 'include' | 'exclude'; billingName?: string; billTo?: string; shippingName?: string; shipTo?: string; runningNumber?: number; financialYear?: string; prefix?: string; siteCode?: string; billingCode?: string; };
 export type GRNItem = { materialId: string; orderedQty: number; receivedQty: number; };
 export type GRN = { id: number; displayId: string; grnNumber?: string; siteId?: string; poId: string; date: string; items: GRNItem[]; status: string; runningNumber?: number; financialYear?: string; siteCode?: string; billingCode?: string; };
-export type Bill = { id: number; displayId: string; vendorInvoiceNo?: string; siteId?: string; grnId?: string; poId: string; vendorId: string; date: string; dueDate?: string; amount: number; materialAmount?: number; actualCartage?: number; loadingAmount?: number; otherCharges?: number; gstAmount?: number; subTotal?: number; status: string; };
-export type Payment = { id: number; displayId: string; siteId?: string; billId: string; date: string; amount: number; mode?: string; reference?: string; };
+export type Bill = { id: number; displayId: string; vendorInvoiceNo?: string; siteId?: string; grnId?: string; poId: string; vendorId: string; date: string; dueDate?: string; amount: number; materialAmount?: number; actualCartage?: number; loadingAmount?: number; otherCharges?: number; gstAmount?: number; subTotal?: number; paidAmount?: number; status: string; };
+export type Payment = { id: number; displayId: string; siteId?: string; billId?: string; vendorId: string; date: string; paymentDate?: string; amount: number; notes?: string; mode?: string; reference?: string; };
 export type POTemplateColumn = { key: string; label: string; visible: boolean; align: 'left' | 'center' | 'right' };
 export type POTemplateConfig = {
   style?: 'professional';
@@ -300,7 +300,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const addBill = async (bill: any) => {
     assertCan("Bills", "create");
-    await api.createBill({ ...bill, status: 'Unpaid' });
+    await api.createBill({ ...bill, status: 'pending', paidAmount: 0 });
     if (bill.grnId) {
       const grn = grns.find(g => g.displayId === bill.grnId);
       if (grn) await api.updateGRN(grn.id, { status: 'Billed' });
@@ -325,20 +325,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateBillStatus = async (id: number, status: string) => { assertCan("Bills", "approve"); await api.updateBill(id, { status }); invalidate(queryKeys.bills); };
 
-  const getNextPaymentDisplayId = () => {
-    const maxNum = payments.reduce((max, p) => {
-      const num = parseInt(p.displayId.replace('PAY-', '')) || 0;
-      return num > max ? num : max;
-    }, 0);
-    return `PAY-${String(maxNum + 1).padStart(3, '0')}`;
-  };
-
   const addPayment = async (payment: any) => {
     assertCan("Payments", "create");
-    const displayId = getNextPaymentDisplayId();
-    await api.createPayment({ ...payment, displayId });
-    const bill = bills.find(b => b.displayId === payment.billId);
-    if (bill) await api.updateBill(bill.id, { status: 'Paid' });
+    await api.createPayment(payment);
     invalidate(queryKeys.payments);
     invalidate(queryKeys.bills);
   };
@@ -347,12 +336,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deletePayment = async (id: number) => {
     assertCan("Payments", "delete");
-    const payment = payments.find(p => p.id === id);
     await api.deletePayment(id);
-    if (payment?.billId) {
-      const bill = bills.find(b => b.displayId === payment.billId);
-      if (bill) await api.updateBill(bill.id, { status: 'Unpaid' });
-    }
     invalidate(queryKeys.payments);
     invalidate(queryKeys.bills);
   };
