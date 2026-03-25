@@ -86,7 +86,7 @@ export function Header() {
   const { resolvedTheme, setTheme } = useTheme();
   const [location] = useLocation();
 
-  const unpaidBills = bills.filter((b) => b.status === "Unpaid");
+  const unpaidBills = bills.filter((b) => b.status === "Unpaid" || b.status === "pending");
   const pendingPOs = pos.filter((p) => p.status === "Pending");
   const unbilledGRNs = grns.filter((g) => g.status === "Pending Bill");
   const lowStockAlerts = siteStocks

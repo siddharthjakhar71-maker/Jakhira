@@ -10,6 +10,12 @@ export type LedgerEntry = {
   balance: number;
 };
 
+export type VendorLedgerDetailsResponse = {
+  bills: Array<{ id: number; displayId: string; date: string; amount: number; paidAmount: number; status: string }>;
+  payments: Array<{ id: number; displayId: string; paymentDate: string; amount: number; notes?: string }>;
+  ledger: LedgerEntry[];
+};
+
 export type VendorStatementResponse = {
   vendorName: string;
   month: string;
@@ -160,6 +166,8 @@ export const api = {
   deleteBill: (id: number) => fetchJSON(`/api/bills/${id}`, { method: "DELETE" }),
 
   getPayments: () => fetchJSON("/api/payments"),
+  getVendorOutstanding: (vendorId: string): Promise<{ vendorId: string; outstanding: number }> => fetchJSON(`/api/vendors/${vendorId}/outstanding`),
+  getVendorLedgerDetails: (vendorId: string): Promise<VendorLedgerDetailsResponse> => fetchJSON(`/api/vendors/${vendorId}/ledger`),
 
 
   getVendorLedger: (vendorId: string, startDate?: string, endDate?: string) => {

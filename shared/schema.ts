@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { ERP_ROLE_LIST } from "./permissions";
@@ -133,19 +133,38 @@ export const bills = sqliteTable("bills", {
   otherCharges: real("other_charges").notNull().default(0),
   gstAmount: real("gst_amount").notNull().default(0),
   subTotal: real("sub_total").notNull().default(0),
-  status: text("status").notNull().default("Unpaid"),
-});
+  paidAmount: real("paid_amount").notNull().default(0),
+  status: text("status").notNull().default("pending"),
+}, (table) => ({
+  vendorDateIdx: index("idx_bills_vendor_date").on(table.vendorId, table.date),
+  vendorStatusIdx: index("idx_bills_vendor_status").on(table.vendorId, table.status),
+}));
 
 export const payments = sqliteTable("payments", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  displayId: text("display_id").notNull(),
+  displayId: text("display_id").notNull().default(""),
   siteId: text("site_id").default(""),
-  billId: text("bill_id").notNull(),
+  billId: text("bill_id").default(""),
   date: text("date").notNull(),
+  vendorId: text("vendor_id").notNull(),
   amount: real("amount").notNull().default(0),
+  paymentDate: text("payment_date").notNull().default(""),
+  notes: text("notes").default(""),
   mode: text("mode").default(""),
   reference: text("reference").default(""),
-});
+}, (table) => ({
+  vendorDateIdx: index("idx_payments_vendor_date").on(table.vendorId, table.paymentDate),
+}));
+
+export const paymentAdjustments = sqliteTable("payment_adjustments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  paymentId: integer("payment_id").notNull(),
+  billId: integer("bill_id").notNull(),
+  adjustedAmount: real("adjusted_amount").notNull().default(0),
+}, (table) => ({
+  paymentIdx: index("idx_payment_adjustments_payment_id").on(table.paymentId),
+  billIdx: index("idx_payment_adjustments_bill_id").on(table.billId),
+}));
 
 export const permissions = sqliteTable("permissions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -389,6 +408,7 @@ export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit
 export const insertGrnSchema = createInsertSchema(grns).omit({ id: true });
 export const insertBillSchema = createInsertSchema(bills).omit({ id: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
+export const insertPaymentAdjustmentSchema = createInsertSchema(paymentAdjustments).omit({ id: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true }).extend({
   role: erpRoleSchema,
 });
@@ -416,6 +436,8 @@ export type Bill = typeof bills.$inferSelect;
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type PaymentAdjustment = typeof paymentAdjustments.$inferSelect;
+export type InsertPaymentAdjustment = z.infer<typeof insertPaymentAdjustmentSchema>;
 export type PermissionRecord = typeof permissions.$inferSelect;
 export type InsertPermissionRecord = z.infer<typeof insertPermissionSchema>;
 export type RolePermissionRecord = typeof rolePermissions.$inferSelect;

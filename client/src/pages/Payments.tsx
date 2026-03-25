@@ -35,12 +35,12 @@ export default function Payments() {
     }
   }, []);
 
-  const unpaidBills = bills.filter(b => b.status === 'Unpaid' || b.status === 'Partial');
+  const unpaidBills = bills.filter(b => ['Unpaid', 'Partial', 'pending', 'partial'].includes(b.status));
   const billDetails = bills.find(b => b.displayId === selectedBillDisplayId);
   
   const filteredPayments = payments.filter(p => 
     p.displayId.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.billId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.billId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.reference && p.reference.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 

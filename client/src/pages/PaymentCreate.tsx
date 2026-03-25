@@ -1,86 +1,172 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ERPHeader } from "@/components/ERPHeader";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const money = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 export default function PaymentCreate() {
-  const { payments, bills, vendors, sites, addPayment } = useStore();
+  const { vendors, bills, addPayment } = useStore();
   const [, setLocation] = useLocation();
-
-  const [selectedBillDisplayId, setSelectedBillDisplayId] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split("T")[0], mode: "Bank Transfer", reference: "", amount: "" });
 
-  const unpaidBills = useMemo(() => bills.filter((b) => b.status === "Unpaid" || b.status === "Partial"), [bills]);
-  const billDetails = bills.find((b) => b.displayId === selectedBillDisplayId);
-  const vendor = vendors.find((v) => v.id.toString() === billDetails?.vendorId);
-  const site = sites.find((s) => s.id.toString() === billDetails?.siteId);
+  const [vendorId, setVendorId] = useState<string>("");
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState<string>("");
+  const [notes, setNotes] = useState<string>("");
+  const [manualMode, setManualMode] = useState<boolean>(false);
+  const [manualAdjustments, setManualAdjustments] = useState<Record<number, string>>({});
 
-  const paidSoFar = useMemo(() => {
-    if (!billDetails) return 0;
-    return payments.filter((p) => p.billId === billDetails.displayId).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  }, [payments, billDetails]);
+  const vendorBills = useMemo(
+    () => bills
+      .filter((bill) => bill.vendorId === vendorId)
+      .filter((bill) => {
+        const billAmount = Number(bill.amount || 0);
+        const paidAmount = Number(bill.paidAmount || 0);
+        return billAmount - paidAmount > 0;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id),
+    [bills, vendorId],
+  );
 
-  const billAmount = Number(billDetails?.amount || 0);
-  const remainingBalance = Math.max(billAmount - paidSoFar, 0);
-  const currentPayment = Number(formData.amount || 0);
+  const { data: outstandingData } = useQuery({
+    queryKey: ["vendorOutstanding", vendorId],
+    queryFn: () => api.getVendorOutstanding(vendorId),
+    enabled: Boolean(vendorId),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!billDetails) return;
+  const totalOutstanding = Number(outstandingData?.outstanding || 0);
+  const paymentAmount = Number(amount || 0);
 
-    await addPayment({
-      billId: billDetails.displayId,
-      siteId: billDetails.siteId,
-      date: formData.date,
-      amount: currentPayment || billDetails.amount,
-      mode: formData.mode,
-      reference: formData.reference,
-    });
+  const manualTotal = useMemo(
+    () => Object.values(manualAdjustments).reduce((sum, value) => sum + Number(value || 0), 0),
+    [manualAdjustments],
+  );
 
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!vendorId) return;
+
+    const payload: Record<string, unknown> = {
+      vendorId,
+      paymentDate,
+      amount: paymentAmount,
+      notes,
+    };
+
+    if (manualMode) {
+      const adjustments = vendorBills
+        .map((bill) => ({
+          billId: bill.id,
+          adjustedAmount: Number(manualAdjustments[bill.id] || 0),
+        }))
+        .filter((entry) => entry.adjustedAmount > 0);
+      if (adjustments.length > 0) {
+        payload.adjustments = adjustments;
+      }
+    }
+
+    await addPayment(payload);
     setLocation("/payments");
   };
 
   return (
     <AppLayout>
-      <form ref={formRef} onSubmit={handleSubmit} className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 pb-28 pt-4 lg:px-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 pb-24 pt-4 lg:px-6">
         <ERPHeader
-          title="Log Payment"
-          subtitle="Payment No: Auto-generated on save"
-          onCancel={() => setLocation('/payments')}
+          title="Vendor Payment"
+          subtitle="Auto-adjust payment against oldest unpaid bills"
+          onCancel={() => setLocation("/payments")}
           onSave={() => formRef.current?.requestSubmit()}
-          saveDisabled={!selectedBillDisplayId}
-        >
-          <div className="min-w-[150px]"><Label>Date</Label><Input type="date" className="h-11" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} /></div>
-          <div className="min-w-[180px] flex-1"><Label>Vendor</Label><Input className="h-11" readOnly value={vendor?.name || "-"} /></div>
-          <div className="min-w-[160px] flex-1"><Label>Site</Label><Input className="h-11" readOnly value={site?.siteName || site?.name || "-"} /></div>
-          <div className="min-w-[200px] flex-1"><Label>Bill Reference</Label><Select required value={selectedBillDisplayId} onValueChange={setSelectedBillDisplayId}><SelectTrigger className="h-11"><SelectValue placeholder="Select Bill" /></SelectTrigger><SelectContent>{unpaidBills.map((b) => <SelectItem key={b.id} value={b.displayId}>{b.displayId}</SelectItem>)}</SelectContent></Select></div>
-          <div className="min-w-[130px]"><Label>Status</Label><div className="h-11 flex items-center"><Badge variant="outline" className="bg-emerald-50 text-emerald-700">Paid</Badge></div></div>
-        </ERPHeader>
+          saveDisabled={!vendorId || paymentAmount <= 0 || (manualMode && manualTotal <= 0)}
+        />
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Payment Details</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div><Label>Amount</Label><Input type="number" step="0.01" className="h-11" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} placeholder={billDetails?.amount?.toFixed(2) || "0.00"} /></div>
-            <div><Label>Mode</Label><Select value={formData.mode} onValueChange={(mode) => setFormData({ ...formData, mode })}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent>{["Cash", "Bank Transfer", "Cheque", "UPI", "RTGS", "NEFT"].map((mode) => <SelectItem key={mode} value={mode}>{mode}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Reference No</Label><Input className="h-11" value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Transaction reference" /></div>
+          <CardHeader><CardTitle className="text-base">Payment Entry</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Vendor</Label>
+              <Select value={vendorId} onValueChange={setVendorId}>
+                <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
+                <SelectContent>{vendors.map((vendor) => <SelectItem key={vendor.id} value={vendor.id.toString()}>{vendor.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2"><Label>Payment Date</Label><Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} /></div>
+            <div className="space-y-2"><Label>Payment Amount</Label><Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-2"><Label>Total Outstanding</Label><Input readOnly value={money(totalOutstanding)} /></div>
+            <div className="space-y-2 md:col-span-2 lg:col-span-4">
+              <Label>Notes</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Narration / bank remarks" />
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="sticky bottom-3 z-20 border-2 bg-background/95 backdrop-blur">
-          <CardContent className="p-4">
-            <div className="ml-auto max-w-md space-y-2 text-sm">
-              <div className="flex justify-between"><span>Bill Amount</span><span>₹{billAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between"><span>Paid So Far</span><span>₹{paidSoFar.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between"><span>Remaining Balance</span><span>₹{remainingBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
-              <div className="flex justify-between border-t pt-2 text-lg font-bold"><span>Current Payment</span><span>₹{(currentPayment || billAmount).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base">Unpaid Bills</CardTitle>
+            <div className="flex gap-2">
+              <Button type="button" variant={manualMode ? "secondary" : "outline"} onClick={() => setManualMode(!manualMode)}>
+                {manualMode ? "Use Auto" : "Manual Adjustment"}
+              </Button>
+              <Button type="submit">Auto Adjust Payment</Button>
             </div>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bill No</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Bill Amount</TableHead>
+                  <TableHead className="text-right">Paid</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  {manualMode && <TableHead className="text-right">Manual Adjust</TableHead>}
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vendorBills.map((bill) => {
+                  const billAmount = Number(bill.amount || 0);
+                  const paid = Number(bill.paidAmount || 0);
+                  const balance = Math.max(billAmount - paid, 0);
+                  return (
+                    <TableRow key={bill.id}>
+                      <TableCell>{bill.displayId}</TableCell>
+                      <TableCell>{bill.date}</TableCell>
+                      <TableCell className="text-right">{money(billAmount)}</TableCell>
+                      <TableCell className="text-right">{money(paid)}</TableCell>
+                      <TableCell className="text-right">{money(balance)}</TableCell>
+                      {manualMode && (
+                        <TableCell className="text-right">
+                          <Input
+                            className="ml-auto h-8 w-32 text-right"
+                            type="number"
+                            step="0.01"
+                            max={balance}
+                            value={manualAdjustments[bill.id] || ""}
+                            onChange={(e) => setManualAdjustments((prev) => ({ ...prev, [bill.id]: e.target.value }))}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell>{bill.status}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {!vendorBills.length && (
+                  <TableRow><TableCell colSpan={manualMode ? 7 : 6} className="text-center text-muted-foreground">Select a vendor to view unpaid bills.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </form>

@@ -121,17 +121,27 @@ CREATE TABLE IF NOT EXISTS vendors (
     other_charges REAL NOT NULL DEFAULT 0,
     gst_amount REAL NOT NULL DEFAULT 0,
     sub_total REAL NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'Unpaid'
+    paid_amount REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending'
   );
   CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    display_id TEXT NOT NULL,
+    display_id TEXT NOT NULL DEFAULT '',
     site_id TEXT DEFAULT '',
-    bill_id TEXT NOT NULL,
+    bill_id TEXT DEFAULT '',
     date TEXT NOT NULL,
+    vendor_id TEXT NOT NULL DEFAULT '',
     amount REAL NOT NULL DEFAULT 0,
+    payment_date TEXT NOT NULL DEFAULT '',
+    notes TEXT DEFAULT '',
     mode TEXT DEFAULT '',
     reference TEXT DEFAULT ''
+  );
+  CREATE TABLE IF NOT EXISTS payment_adjustments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    payment_id INTEGER NOT NULL,
+    bill_id INTEGER NOT NULL,
+    adjusted_amount REAL NOT NULL DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS permissions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -559,6 +569,50 @@ if (!billColumns.some((column) => column.name === "gst_amount")) {
 if (!billColumns.some((column) => column.name === "sub_total")) {
   sqlite.exec("ALTER TABLE bills ADD COLUMN sub_total REAL NOT NULL DEFAULT 0;");
 }
+if (!billColumns.some((column) => column.name === "paid_amount")) {
+  sqlite.exec("ALTER TABLE bills ADD COLUMN paid_amount REAL NOT NULL DEFAULT 0;");
+}
+
+const paymentColumns = sqlite.prepare("PRAGMA table_info(payments)").all() as Array<{ name: string }>;
+if (!paymentColumns.some((column) => column.name === "vendor_id")) {
+  sqlite.exec("ALTER TABLE payments ADD COLUMN vendor_id TEXT NOT NULL DEFAULT '';");
+}
+if (!paymentColumns.some((column) => column.name === "payment_date")) {
+  sqlite.exec("ALTER TABLE payments ADD COLUMN payment_date TEXT NOT NULL DEFAULT '';");
+}
+if (!paymentColumns.some((column) => column.name === "notes")) {
+  sqlite.exec("ALTER TABLE payments ADD COLUMN notes TEXT DEFAULT '';");
+}
+
+sqlite.exec(`
+  UPDATE payments
+  SET payment_date = COALESCE(NULLIF(payment_date, ''), date)
+  WHERE COALESCE(NULLIF(date, ''), '') <> '';
+`);
+
+sqlite.exec(`
+  UPDATE payments
+  SET vendor_id = COALESCE(NULLIF(vendor_id, ''), (
+    SELECT b.vendor_id FROM bills b WHERE b.display_id = payments.bill_id LIMIT 1
+  ), '')
+  WHERE COALESCE(NULLIF(vendor_id, ''), '') = '';
+`);
+
+sqlite.exec(`
+  UPDATE bills
+  SET status = CASE
+    WHEN lower(status) IN ('unpaid', 'pending') THEN 'pending'
+    WHEN lower(status) IN ('partial', 'partially paid') THEN 'partial'
+    WHEN lower(status) IN ('paid') THEN 'paid'
+    ELSE status
+  END;
+`);
+
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_bills_vendor_date ON bills(vendor_id, date);");
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_bills_vendor_status ON bills(vendor_id, status);");
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_payments_vendor_date ON payments(vendor_id, payment_date);");
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_payment_adjustments_payment_id ON payment_adjustments(payment_id);");
+sqlite.exec("CREATE INDEX IF NOT EXISTS idx_payment_adjustments_bill_id ON payment_adjustments(bill_id);");
 
 
 
