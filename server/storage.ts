@@ -653,19 +653,38 @@ export class DatabaseStorage implements IStorage {
     const manualAdjustments = Array.isArray((payment as any).adjustments) ? (payment as any).adjustments : [];
 
     const createdPayment = db.transaction((tx) => {
-      const [created] = tx.insert(payments).values(paymentPayload).returning();
-      if (!created) {
-        throw new Error("Unable to create payment");
-      }
-
       const unpaidBills = tx
         .select()
         .from(bills)
         .where(and(eq(bills.vendorId, normalizedVendorId), or(eq(bills.status, "pending"), eq(bills.status, "partial"))))
         .orderBy(asc(bills.date), asc(bills.id));
 
+      const payableByBill = unpaidBills.map((bill) => {
+        const billAmount = Math.max(Number(bill.amount || 0), 0);
+        const currentPaid = Math.min(Math.max(Number(bill.paidAmount || 0), 0), billAmount);
+        return {
+          ...bill,
+          billAmount,
+          currentPaid,
+          outstanding: Math.max(billAmount - currentPaid, 0),
+        };
+      }).filter((bill) => bill.outstanding > 0);
+
+      const totalOutstanding = payableByBill.reduce((sum, bill) => sum + bill.outstanding, 0);
+      if (totalOutstanding <= 0) {
+        throw new Error("No unpaid bills available for this vendor");
+      }
+      if (totalAmount > totalOutstanding) {
+        throw new Error("Payment amount exceeds vendor outstanding");
+      }
+
+      const [created] = tx.insert(payments).values(paymentPayload).returning();
+      if (!created) {
+        throw new Error("Unable to create payment");
+      }
+
       let remainingPayment = totalAmount;
-      const billById = new Map(unpaidBills.map((bill) => [bill.id, bill]));
+      const billById = new Map(payableByBill.map((bill) => [bill.id, bill]));
       const adjustmentPlan = manualAdjustments.length > 0
         ? manualAdjustments
             .map((entry: any) => ({
@@ -673,15 +692,15 @@ export class DatabaseStorage implements IStorage {
               adjustedAmount: Number(entry.adjustedAmount || 0),
             }))
             .filter((entry: any) => Number.isFinite(entry.billId) && entry.adjustedAmount > 0)
-        : unpaidBills.map((bill) => ({ billId: bill.id, adjustedAmount: Number.POSITIVE_INFINITY }));
+        : payableByBill.map((bill) => ({ billId: bill.id, adjustedAmount: Number.POSITIVE_INFINITY }));
 
       for (const plan of adjustmentPlan) {
         if (remainingPayment <= 0) break;
         const bill = billById.get(plan.billId);
         if (!bill) continue;
-        const billAmount = Number(bill.amount || 0);
-        const paidAmount = Math.min(Math.max(Number(bill.paidAmount || 0), 0), billAmount);
-        const billBalance = Math.max(billAmount - paidAmount, 0);
+        const billAmount = bill.billAmount;
+        const paidAmount = bill.currentPaid;
+        const billBalance = bill.outstanding;
         if (billBalance <= 0) continue;
 
         const adjustedAmount = Math.min(remainingPayment, billBalance, Number(plan.adjustedAmount || 0));
@@ -694,6 +713,9 @@ export class DatabaseStorage implements IStorage {
           .set({ paidAmount: updatedPaidAmount, status: nextStatus })
           .where(eq(bills.id, bill.id));
 
+        bill.currentPaid = updatedPaidAmount;
+        bill.outstanding = Math.max(billAmount - updatedPaidAmount, 0);
+
         tx.insert(paymentAdjustments).values({
           paymentId: created.id,
           billId: bill.id,
@@ -701,6 +723,10 @@ export class DatabaseStorage implements IStorage {
         });
 
         remainingPayment -= adjustedAmount;
+      }
+
+      if (remainingPayment > 0) {
+        throw new Error("Unable to fully allocate payment to unpaid bills");
       }
 
       return {
@@ -727,13 +753,14 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Payment not found");
       }
 
-      const adjustments = tx.select().from(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
+      const adjustments = tx.select().from(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id)).orderBy(asc(paymentAdjustments.id));
       for (const adjustment of adjustments) {
         const [bill] = tx.select().from(bills).where(eq(bills.id, adjustment.billId)).limit(1);
         if (!bill) continue;
         const billAmount = Number(bill.amount || 0);
         const currentPaidAmount = Math.min(Math.max(Number(bill.paidAmount || 0), 0), billAmount);
-        const nextPaidAmount = Math.max(Math.min(currentPaidAmount - Number(adjustment.adjustedAmount || 0), billAmount), 0);
+        const adjustmentAmount = Math.max(Number(adjustment.adjustedAmount || 0), 0);
+        const nextPaidAmount = Math.max(Math.min(currentPaidAmount - adjustmentAmount, billAmount), 0);
         const nextStatus = nextPaidAmount <= 0 ? "pending" : nextPaidAmount >= billAmount ? "paid" : "partial";
         tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id));
       }
