@@ -10,7 +10,9 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
 function getMonthKey(dateStr: string) {
+  if (!dateStr) return "";
   const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -28,8 +30,14 @@ export default function VendorPayments() {
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    bills.forEach(b => months.add(getMonthKey(b.date)));
-    payments.forEach(p => months.add(getMonthKey(p.date)));
+    bills.forEach(b => {
+      const key = getMonthKey(b.date);
+      if (key) months.add(key);
+    });
+    payments.forEach(p => {
+      const key = getMonthKey(p.paymentDate || p.date || "");
+      if (key) months.add(key);
+    });
     return Array.from(months).sort().reverse();
   }, [bills, payments]);
 
@@ -40,6 +48,7 @@ export default function VendorPayments() {
       const vendorId = bill.vendorId;
       const month = getMonthKey(bill.date);
       if (!vendorMap[vendorId]) vendorMap[vendorId] = {};
+      if (!month) return;
       if (!vendorMap[vendorId][month]) vendorMap[vendorId][month] = { totalPurchase: 0, paidAmount: 0, bills: [], payments: [], siteIds: new Set() };
       vendorMap[vendorId][month].totalPurchase += bill.amount;
       vendorMap[vendorId][month].bills.push(bill);
@@ -47,10 +56,9 @@ export default function VendorPayments() {
     });
 
     payments.forEach(payment => {
-      const bill = bills.find(b => b.displayId === payment.billId);
-      if (!bill) return;
-      const vendorId = bill.vendorId;
-      const month = getMonthKey(payment.date);
+      const vendorId = String(payment.vendorId || "");
+      if (!vendorId) return;
+      const month = getMonthKey(payment.paymentDate || payment.date || "");
       if (!vendorMap[vendorId]) vendorMap[vendorId] = {};
       if (!vendorMap[vendorId][month]) vendorMap[vendorId][month] = { totalPurchase: 0, paidAmount: 0, bills: [], payments: [], siteIds: new Set() };
       vendorMap[vendorId][month].paidAmount += payment.amount;
