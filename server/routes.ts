@@ -55,6 +55,9 @@ export async function registerRoutes(
       res.status(401).json({ message: "Unauthorized" });
       return false;
     }
+    if (isAdminRole(user.role)) {
+      return true;
+    }
 
     const moduleName = PERMISSION_ROUTE_MAP[req.path as keyof typeof PERMISSION_ROUTE_MAP];
     if (!moduleName) return true;
