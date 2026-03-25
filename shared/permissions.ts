@@ -105,12 +105,19 @@ export const PERMISSION_ROUTE_MAP: Record<string, PermissionModule> = {
 
 export type PermissionMap = Partial<Record<PermissionModule, Partial<Record<PermissionAction, boolean>>>>;
 
+const ADMIN_ROLE_ALIASES = new Set(["admin", "administrator", "super admin", "superadmin"]);
+
+function normalizeRole(role: string | undefined | null): string {
+  return (role || "").trim().toLowerCase();
+}
+
 export function isAdminRole(role: string | undefined | null): boolean {
-  return (role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase();
+  const normalizedRole = normalizeRole(role);
+  return ADMIN_ROLE_ALIASES.has(normalizedRole);
 }
 
 export function buildRolePermissionMap(role: string): PermissionMap {
-  const normalizedRole = (role || "").trim().toLowerCase();
+  const normalizedRole = normalizeRole(role);
   const roleKey = (Object.keys(ERP_ROLES).find(
     (key) => ERP_ROLES[key as keyof typeof ERP_ROLES].toLowerCase() === normalizedRole,
   ) || "VIEWER") as keyof typeof ERP_ROLES;
@@ -136,6 +143,9 @@ export function canAccess(
   moduleName: PermissionModule,
   action: PermissionAction,
 ): boolean {
+  if (isAdminRole(role)) {
+    return true;
+  }
   const roleMap = map || buildRolePermissionMap(role || ERP_ROLES.VIEWER);
   return Boolean(roleMap[moduleName]?.[action]);
 }

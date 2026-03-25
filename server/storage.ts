@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { hashPassword, isPasswordHashed } from "./auth";
 import { eq, and, or, inArray, desc, asc, sql, type SQL } from "drizzle-orm";
-import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
+import { ERP_PERMISSION_ACTIONS, ERP_PERMISSION_MODULES, ERP_ROLES, isAdminRole, type PermissionAction, type PermissionMap, type PermissionModule } from "@shared/permissions";
 import {
   sites, vendors, materials, purchaseOrders, grns, bills, payments, paymentAdjustments, poTemplates, templateStyles, vendorLedgerEntries,
   materialIssues, siteStock, stockLedger, materialRateHistory, vendorMaterialRates, users, userProfile, systemSettings, permissions, rolePermissions,
@@ -1282,7 +1282,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async userHasPermission(role: string, moduleName: string, action: string): Promise<boolean> {
-    if ((role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase()) {
+    if (isAdminRole(role)) {
       return true;
     }
 

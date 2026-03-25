@@ -1,14 +1,14 @@
 import { useCallback } from "react";
-import { ERP_ROLES, type PermissionModule } from "@shared/permissions";
+import { isAdminRole, type PermissionAction, type PermissionModule } from "@shared/permissions";
 import { useStore } from "@/lib/store";
 
 export function usePermissions() {
   const { can, userProfile, isAuthenticated, permissionMapLoading } = useStore();
 
-  const isAdmin = (userProfile.role || "").trim().toLowerCase() === ERP_ROLES.ADMIN.toLowerCase();
+  const isAdmin = isAdminRole(userProfile.role);
 
   const canAction = useCallback(
-    (moduleName: PermissionModule, action: "view" | "create" | "edit" | "delete" | "approve") => {
+    (moduleName: PermissionModule, action: PermissionAction) => {
       if (isAdmin) {
         return true;
       }
@@ -31,6 +31,7 @@ export function usePermissions() {
   const canEdit = useCallback((moduleName: PermissionModule) => canAction(moduleName, "edit"), [canAction]);
   const canDelete = useCallback((moduleName: PermissionModule) => canAction(moduleName, "delete"), [canAction]);
   const canApprove = useCallback((moduleName: PermissionModule) => canAction(moduleName, "approve"), [canAction]);
+  const canExport = useCallback((moduleName: PermissionModule) => canAction(moduleName, "export"), [canAction]);
 
   return {
     canView,
@@ -38,6 +39,7 @@ export function usePermissions() {
     canEdit,
     canDelete,
     canApprove,
+    canExport,
     permissionMapLoading,
     isAdmin,
   };

@@ -63,7 +63,7 @@ function UserStoreInitializer() {
 function Router() {
   const { isAuthenticated, isAuthLoading } = useStore();
   const [location, setLocation] = useLocation();
-  const { canView, permissionMapLoading } = usePermissions();
+  const { canView, permissionMapLoading, isAdmin } = usePermissions();
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -88,7 +88,7 @@ function Router() {
     return null;
   }
 
-  if (permissionMapLoading && location !== "/") {
+  if (permissionMapLoading && !isAdmin && location !== "/") {
     return null;
   }
 
