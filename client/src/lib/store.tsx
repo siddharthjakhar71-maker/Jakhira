@@ -12,7 +12,21 @@ export type PO = { id: number; displayId: string; poNumber?: string; siteId?: st
 export type GRNItem = { materialId: string; orderedQty: number; receivedQty: number; };
 export type GRN = { id: number; displayId: string; grnNumber?: string; siteId?: string; poId: string; date: string; items: GRNItem[]; status: string; runningNumber?: number; financialYear?: string; siteCode?: string; billingCode?: string; };
 export type Bill = { id: number; displayId: string; vendorInvoiceNo?: string; siteId?: string; grnId?: string; poId: string; vendorId: string; date: string; dueDate?: string; amount: number; materialAmount?: number; actualCartage?: number; loadingAmount?: number; otherCharges?: number; gstAmount?: number; subTotal?: number; paidAmount?: number; status: string; };
-export type Payment = { id: number; displayId: string; siteId?: string; billId?: string; vendorId: string; date: string; paymentDate?: string; amount: number; notes?: string; mode?: string; reference?: string; };
+export type Payment = {
+  id: number;
+  displayId: string;
+  siteId?: string;
+  billId?: string;
+  vendorId: string;
+  date?: string;
+  paymentDate?: string;
+  amount: number;
+  notes?: string;
+  mode?: string;
+  reference?: string;
+  billRefs?: string[];
+  adjustments?: Array<{ billId: number; billDisplayId: string; adjustedAmount: number }>;
+};
 export type POTemplateColumn = { key: string; label: string; visible: boolean; align: 'left' | 'center' | 'right' };
 export type POTemplateConfig = {
   style?: 'professional';
@@ -328,8 +342,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addPayment = async (payment: any) => {
     assertCan("Payments", "create");
     await api.createPayment(payment);
-    invalidate(queryKeys.payments);
-    invalidate(queryKeys.bills);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.bills }),
+      queryClient.invalidateQueries({ queryKey: ["vendorPayables"] }),
+    ]);
   };
 
   const updatePayment = async (id: number, payment: Partial<Payment>) => { assertCan("Payments", "edit"); await api.updatePayment(id, payment); invalidate(queryKeys.payments); };
@@ -337,8 +354,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const deletePayment = async (id: number) => {
     assertCan("Payments", "delete");
     await api.deletePayment(id);
-    invalidate(queryKeys.payments);
-    invalidate(queryKeys.bills);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.bills }),
+      queryClient.invalidateQueries({ queryKey: ["vendorPayables"] }),
+    ]);
   };
 
   const getNextIssueDisplayId = () => {

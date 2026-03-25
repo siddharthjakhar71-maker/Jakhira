@@ -629,7 +629,47 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPayments(): Promise<Payment[]> {
-    return db.select().from(payments);
+    const paymentRows = await db
+      .select()
+      .from(payments)
+      .orderBy(desc(payments.paymentDate), desc(payments.id));
+
+    if (!paymentRows.length) {
+      return [];
+    }
+
+    const paymentIds = paymentRows.map((payment) => payment.id);
+    const adjustmentRows = await db
+      .select({
+        paymentId: paymentAdjustments.paymentId,
+        billId: paymentAdjustments.billId,
+        adjustedAmount: paymentAdjustments.adjustedAmount,
+        billDisplayId: bills.displayId,
+      })
+      .from(paymentAdjustments)
+      .leftJoin(bills, eq(paymentAdjustments.billId, bills.id))
+      .where(inArray(paymentAdjustments.paymentId, paymentIds))
+      .orderBy(asc(paymentAdjustments.id));
+
+    const adjustmentsByPayment = new Map<number, Array<{ billId: number; billDisplayId: string; adjustedAmount: number }>>();
+    for (const adjustment of adjustmentRows) {
+      const existing = adjustmentsByPayment.get(adjustment.paymentId) || [];
+      existing.push({
+        billId: adjustment.billId,
+        billDisplayId: adjustment.billDisplayId || `#${adjustment.billId}`,
+        adjustedAmount: Number(adjustment.adjustedAmount || 0),
+      });
+      adjustmentsByPayment.set(adjustment.paymentId, existing);
+    }
+
+    return paymentRows.map((payment) => {
+      const adjustments = adjustmentsByPayment.get(payment.id) || [];
+      return {
+        ...payment,
+        billRefs: adjustments.map((item) => item.billDisplayId),
+        adjustments,
+      } as Payment;
+    });
   }
   async createPayment(payment: InsertPayment): Promise<PaymentCreateResult> {
     const normalizedDate = payment.paymentDate || payment.date || new Date().toISOString().slice(0, 10);
@@ -657,7 +697,8 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(bills)
         .where(and(eq(bills.vendorId, normalizedVendorId), or(eq(bills.status, "pending"), eq(bills.status, "partial"))))
-        .orderBy(asc(bills.date), asc(bills.id));
+        .orderBy(asc(bills.date), asc(bills.id))
+        .all();
 
       const payableByBill = unpaidBills.map((bill) => {
         const billAmount = Math.max(Number(bill.amount || 0), 0);
@@ -678,9 +719,15 @@ export class DatabaseStorage implements IStorage {
         throw new Error("Payment amount exceeds vendor outstanding");
       }
 
-      const [created] = tx.insert(payments).values(paymentPayload).returning();
+      const created = tx.insert(payments).values(paymentPayload).returning().get();
       if (!created) {
         throw new Error("Unable to create payment");
+      }
+
+      const normalizedDisplayId = created.displayId || `PAY-${String(created.id).padStart(6, "0")}`;
+      if (normalizedDisplayId !== created.displayId) {
+        tx.update(payments).set({ displayId: normalizedDisplayId }).where(eq(payments.id, created.id)).run();
+        created.displayId = normalizedDisplayId;
       }
 
       let remainingPayment = totalAmount;
@@ -711,7 +758,8 @@ export class DatabaseStorage implements IStorage {
         tx
           .update(bills)
           .set({ paidAmount: updatedPaidAmount, status: nextStatus })
-          .where(eq(bills.id, bill.id));
+          .where(eq(bills.id, bill.id))
+          .run();
 
         bill.currentPaid = updatedPaidAmount;
         bill.outstanding = Math.max(billAmount - updatedPaidAmount, 0);
@@ -720,7 +768,7 @@ export class DatabaseStorage implements IStorage {
           paymentId: created.id,
           billId: bill.id,
           adjustedAmount,
-        });
+        }).run();
 
         remainingPayment -= adjustedAmount;
       }
@@ -757,7 +805,8 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(paymentAdjustments)
         .where(eq(paymentAdjustments.paymentId, id))
-        .orderBy(asc(paymentAdjustments.id));
+        .orderBy(asc(paymentAdjustments.id))
+        .all();
 
       for (const adjustment of adjustments) {
         const bill = tx.select().from(bills).where(eq(bills.id, adjustment.billId)).get();
@@ -769,11 +818,11 @@ export class DatabaseStorage implements IStorage {
         const nextPaidAmount = Math.max(Math.min(currentPaidAmount - adjustmentAmount, billAmount), 0);
         const nextStatus = nextPaidAmount <= 0 ? "pending" : nextPaidAmount >= billAmount ? "paid" : "partial";
 
-        tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id));
+        tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id)).run();
       }
 
-      tx.delete(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
-      tx.delete(payments).where(eq(payments.id, id));
+      tx.delete(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id)).run();
+      tx.delete(payments).where(eq(payments.id, id)).run();
     });
   }
 

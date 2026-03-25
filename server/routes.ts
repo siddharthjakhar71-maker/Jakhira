@@ -69,6 +69,24 @@ export async function registerRoutes(
     return true;
   };
 
+  const requireModulePermission = async (req: Request, res: any, moduleName: PermissionModule, action: PermissionAction): Promise<boolean> => {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return false;
+    }
+    if (isAdminRole(user.role)) {
+      return true;
+    }
+
+    const allowed = await storage.userHasPermission(user.role, moduleName, action);
+    if (!allowed) {
+      res.status(403).json({ message: `Permission denied: ${moduleName}.${action}` });
+      return false;
+    }
+    return true;
+  };
+
   const getModuleFromApiPath = (path: string): PermissionModule | undefined => {
     if (path.startsWith("/api/sites")) return "Sites";
     if (path.startsWith("/api/vendors")) return "Vendors";
@@ -894,6 +912,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/payments", async (req, res) => {
+    if (!(await requireModulePermission(req, res, "Bills", "edit"))) return;
     const vendorId = typeof req.body?.vendorId === "string" ? req.body.vendorId.trim() : "";
     const amount = Number(req.body?.amount || 0);
     const paymentDate = typeof req.body?.paymentDate === "string" && req.body.paymentDate
@@ -948,6 +967,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/payments/:id", async (req, res) => {
+    if (!(await requireModulePermission(req, res, "Bills", "edit"))) return;
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ message: "Invalid payment id" });
