@@ -916,7 +916,9 @@ export async function registerRoutes(
         date: paymentDate,
       });
     } catch (error) {
-      return res.status(400).json({ message: error instanceof Error ? error.message : "Unable to create payment" });
+      const message = error instanceof Error ? error.message : "Unable to create payment";
+      const statusCode = message === "Unable to create payment" ? 500 : 400;
+      return res.status(statusCode).json({ message });
     }
     await logAuditEvent(storage, await getAuditActor(req), {
       action: "CREATE_PAYMENT",
@@ -944,7 +946,16 @@ export async function registerRoutes(
 
   app.delete("/api/payments/:id", async (req, res) => {
     const id = Number(req.params.id);
-    await storage.deletePayment(id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: "Invalid payment id" });
+    }
+    try {
+      await storage.deletePayment(id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to delete payment";
+      const statusCode = message === "Payment not found" ? 404 : message === "Invalid payment id" ? 400 : 500;
+      return res.status(statusCode).json({ message });
+    }
     await logAuditEvent(storage, await getAuditActor(req), {
       action: "DELETE_PAYMENT",
       module: "Payments",

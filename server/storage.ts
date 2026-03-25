@@ -58,7 +58,7 @@ export interface IStorage {
   deleteBill(id: number): Promise<void>;
 
   getPayments(): Promise<Payment[]>;
-  createPayment(payment: InsertPayment): Promise<Payment>;
+  createPayment(payment: InsertPayment): Promise<PaymentCreateResult>;
   updatePayment(id: number, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
   deletePayment(id: number): Promise<void>;
 
@@ -136,6 +136,11 @@ export type VendorStatement = {
   totalPayments: number;
   closingBalance: number;
   transactions: VendorLedgerEntry[];
+};
+
+export type PaymentCreateResult = Payment & {
+  allocatedAmount: number;
+  unallocatedAmount: number;
 };
 
 export type VendorPayable = {
@@ -626,7 +631,7 @@ export class DatabaseStorage implements IStorage {
   async getPayments(): Promise<Payment[]> {
     return db.select().from(payments);
   }
-  async createPayment(payment: InsertPayment): Promise<Payment> {
+  async createPayment(payment: InsertPayment): Promise<PaymentCreateResult> {
     const normalizedDate = payment.paymentDate || payment.date || new Date().toISOString().slice(0, 10);
     const normalizedVendorId = String(payment.vendorId || "").trim();
     const totalAmount = Number(payment.amount || 0);
@@ -647,13 +652,13 @@ export class DatabaseStorage implements IStorage {
 
     const manualAdjustments = Array.isArray((payment as any).adjustments) ? (payment as any).adjustments : [];
 
-    const createdPayment = await db.transaction(async (tx) => {
-      const [created] = await tx.insert(payments).values(paymentPayload).returning();
+    const createdPayment = db.transaction((tx) => {
+      const [created] = tx.insert(payments).values(paymentPayload).returning();
       if (!created) {
         throw new Error("Unable to create payment");
       }
 
-      const unpaidBills = await tx
+      const unpaidBills = tx
         .select()
         .from(bills)
         .where(and(eq(bills.vendorId, normalizedVendorId), or(eq(bills.status, "pending"), eq(bills.status, "partial"))))
@@ -675,21 +680,21 @@ export class DatabaseStorage implements IStorage {
         const bill = billById.get(plan.billId);
         if (!bill) continue;
         const billAmount = Number(bill.amount || 0);
-        const paidAmount = Number(bill.paidAmount || 0);
+        const paidAmount = Math.min(Math.max(Number(bill.paidAmount || 0), 0), billAmount);
         const billBalance = Math.max(billAmount - paidAmount, 0);
         if (billBalance <= 0) continue;
 
         const adjustedAmount = Math.min(remainingPayment, billBalance, Number(plan.adjustedAmount || 0));
-        const updatedPaidAmount = paidAmount + adjustedAmount;
-        const nextStatus = updatedPaidAmount >= billAmount ? "paid" : "partial";
+        const updatedPaidAmount = Math.min(paidAmount + adjustedAmount, billAmount);
+        const nextStatus = updatedPaidAmount <= 0 ? "pending" : updatedPaidAmount >= billAmount ? "paid" : "partial";
         if (adjustedAmount <= 0) continue;
 
-        await tx
+        tx
           .update(bills)
           .set({ paidAmount: updatedPaidAmount, status: nextStatus })
           .where(eq(bills.id, bill.id));
 
-        await tx.insert(paymentAdjustments).values({
+        tx.insert(paymentAdjustments).values({
           paymentId: created.id,
           billId: bill.id,
           adjustedAmount,
@@ -698,7 +703,11 @@ export class DatabaseStorage implements IStorage {
         remainingPayment -= adjustedAmount;
       }
 
-      return created;
+      return {
+        ...created,
+        allocatedAmount: totalAmount - remainingPayment,
+        unallocatedAmount: remainingPayment,
+      };
     });
 
     return createdPayment;
@@ -708,18 +717,28 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
   async deletePayment(id: number): Promise<void> {
-    await db.transaction(async (tx) => {
-      const adjustments = await tx.select().from(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
-      for (const adjustment of adjustments) {
-        const [bill] = await tx.select().from(bills).where(eq(bills.id, adjustment.billId)).limit(1);
-        if (!bill) continue;
-        const nextPaidAmount = Math.max(Number(bill.paidAmount || 0) - Number(adjustment.adjustedAmount || 0), 0);
-        const billAmount = Number(bill.amount || 0);
-        const nextStatus = nextPaidAmount <= 0 ? "pending" : nextPaidAmount >= billAmount ? "paid" : "partial";
-        await tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id));
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new Error("Invalid payment id");
+    }
+
+    db.transaction((tx) => {
+      const [existingPayment] = tx.select().from(payments).where(eq(payments.id, id)).limit(1);
+      if (!existingPayment) {
+        throw new Error("Payment not found");
       }
-      await tx.delete(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
-      await tx.delete(payments).where(eq(payments.id, id));
+
+      const adjustments = tx.select().from(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
+      for (const adjustment of adjustments) {
+        const [bill] = tx.select().from(bills).where(eq(bills.id, adjustment.billId)).limit(1);
+        if (!bill) continue;
+        const billAmount = Number(bill.amount || 0);
+        const currentPaidAmount = Math.min(Math.max(Number(bill.paidAmount || 0), 0), billAmount);
+        const nextPaidAmount = Math.max(Math.min(currentPaidAmount - Number(adjustment.adjustedAmount || 0), billAmount), 0);
+        const nextStatus = nextPaidAmount <= 0 ? "pending" : nextPaidAmount >= billAmount ? "paid" : "partial";
+        tx.update(bills).set({ paidAmount: nextPaidAmount, status: nextStatus }).where(eq(bills.id, bill.id));
+      }
+      tx.delete(paymentAdjustments).where(eq(paymentAdjustments.paymentId, id));
+      tx.delete(payments).where(eq(payments.id, id));
     });
   }
 
