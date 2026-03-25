@@ -4,9 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SearchableSelect from "@/components/ui/SearchableSelect";
@@ -16,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { useStore, type Material } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CalendarDays, Check, ChevronsUpDown, CircleDollarSign, FileText, Plus, Save, ShoppingCart, Trash2, Truck } from "lucide-react";
+import { ArrowLeft, CalendarDays, CircleDollarSign, FileText, Plus, Save, ShoppingCart, Trash2, Truck } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -70,7 +68,7 @@ type MaterialSelectorProps = {
   disabled?: boolean;
   placeholder?: string;
   noResultsText?: string;
-  buttonRef?: (el: HTMLButtonElement | null) => void;
+  inputRef?: (el: HTMLInputElement | null) => void;
 };
 
 function MaterialSelector({
@@ -80,97 +78,29 @@ function MaterialSelector({
   onFocus,
   disabled = false,
   placeholder = "Select material",
-  noResultsText = "No matching materials",
-  buttonRef,
+  noResultsText = "No material found",
+  inputRef,
 }: MaterialSelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const selectedMaterial = useMemo(
-    () => materials.find((material) => material.id.toString() === value) ?? null,
-    [materials, value],
-  );
-
-  const filteredMaterials = useMemo(() => {
-    const normalizedQuery = search.trim().toLowerCase();
-
-    if (!normalizedQuery) return materials;
-
-    return materials.filter((material) => {
-      const code = getMaterialSearchCode(material).toLowerCase();
-      const category = (material.category ?? "").toLowerCase();
-      const name = material.name.toLowerCase();
-      return name.includes(normalizedQuery) || code.includes(normalizedQuery) || category.includes(normalizedQuery);
-    });
-  }, [materials, search]);
-
-  const handleSelect = (materialId: string) => {
-    onSelect(materialId);
-    setOpen(false);
-    setSearch("");
-  };
-
   return (
-    <Popover open={open} onOpenChange={(nextOpen) => {
-      setOpen(nextOpen);
-      if (!nextOpen) setSearch("");
-    }}>
-      <PopoverTrigger asChild>
-        <Button
-          ref={buttonRef}
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          onClick={() => onFocus?.()}
-          onFocus={() => onFocus?.()}
-          className="h-12 w-full justify-between rounded-2xl px-3 font-normal"
-        >
-          <span className={cn("truncate text-left", !selectedMaterial && "text-muted-foreground")}>
-            {selectedMaterial
-              ? [selectedMaterial.name, getMaterialSearchCode(selectedMaterial)].filter(Boolean).join(" • ")
-              : placeholder}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] min-w-[320px] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            value={search}
-            onValueChange={setSearch}
-            placeholder="Search by name, code, or category"
-          />
-          <CommandList>
-            <CommandEmpty>{noResultsText}</CommandEmpty>
-            {filteredMaterials.map((material) => {
-              const materialId = material.id.toString();
-              const materialCode = getMaterialSearchCode(material);
-              const isSelected = materialId === value;
-
-              return (
-                <CommandItem
-                  key={materialId}
-                  value={`${material.name} ${materialCode} ${material.category ?? ""}`}
-                  keywords={[material.name, materialCode, material.category ?? ""]}
-                  onSelect={() => handleSelect(materialId)}
-                  className="flex items-start gap-3 px-3 py-3"
-                >
-                  <Check className={cn("mt-0.5 h-4 w-4 shrink-0", isSelected ? "opacity-100" : "opacity-0")} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{material.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {[materialCode, material.category, material.unit].filter(Boolean).join(" • ") || "-"}
-                    </div>
-                  </div>
-                </CommandItem>
-              );
-            })}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <SearchableSelect
+      options={materials}
+      value={value}
+      onSelect={(selectedMaterialId) => onSelect(selectedMaterialId)}
+      placeholder={placeholder}
+      getOptionLabel={(material) => material.name}
+      getOptionValue={(material) => material.id.toString()}
+      getOptionDescription={(material) =>
+        [getMaterialSearchCode(material), material.category, material.unit].filter(Boolean).join(" • ") || "-"
+      }
+      getOptionSearchText={(material) => `${getMaterialSearchCode(material)} ${material.category ?? ""}`}
+      inputClassName="h-12 rounded-2xl"
+      dropdownClassName="max-h-72 overflow-y-auto"
+      noResultsText={noResultsText}
+      maxResults={200}
+      disabled={disabled}
+      onFocus={onFocus}
+      inputRef={inputRef}
+    />
   );
 }
 export default function PurchaseOrderCreate() {
@@ -179,7 +109,7 @@ export default function PurchaseOrderCreate() {
   const [formData, setFormData] = useState(initialFormData);
   const [items, setItems] = useState(initialItems);
   const [activeRow, setActiveRow] = useState<number | null>(null);
-  const materialRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const materialRefs = useRef<Array<HTMLInputElement | null>>([]);
   const qtyRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [materialModalOpen, setMaterialModalOpen] = useState(false);
   const [pendingMaterialRow, setPendingMaterialRow] = useState<number | null>(null);
@@ -521,11 +451,11 @@ export default function PurchaseOrderCreate() {
                                   value={item.materialId}
                                   onSelect={(val) => selectMaterial(index, val)}
                                   onFocus={() => setActiveRow(index)}
-                                  buttonRef={(el) => {
+                                  inputRef={(el) => {
                                     materialRefs.current[index] = el;
                                   }}
                                   placeholder="Search material"
-                                  noResultsText="No matching materials"
+                                  noResultsText="No material found"
                                 />
                                 <Button
                                   type="button"
