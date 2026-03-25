@@ -1,0 +1,18 @@
+# Build folders
+release/
+dist/
+
+# Dependencies
+node_modules/
+
+# Database
+data/*.db
+data/*.db-wal
+data/*.db-shm
+backups/*.db
+
+# Local tool files
+.local/
+
+# Env files
+.env

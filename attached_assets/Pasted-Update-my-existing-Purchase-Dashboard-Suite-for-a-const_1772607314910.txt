@@ -1,0 +1,76 @@
+Update my existing Purchase Dashboard Suite for a construction company purchase department with the following improvements and new features.
+
+1. Monthly Vendor Payment Tracking
+   In our company we make payments to vendors monthly. Add a feature where I can track payments vendor-wise by month.
+
+Requirements:
+
+* Create a "Vendor Payment Summary" page.
+* Show a table like:
+
+Vendor | Month | Total Purchase | Paid Amount | Pending Amount | Payment Status
+
+* Automatically calculate vendor totals from bills or purchase orders.
+* Allow filtering by:
+
+  * Month
+  * Vendor
+  * Site
+* Add a button to mark payments as Paid or Partially Paid.
+* Show monthly vendor payable reports.
+
+2. Dashboard Fix
+   Update the dashboard with these changes:
+
+* Remove the "Outstanding Payable" card completely.
+* Fix the site filter on dashboard because it is currently showing all sites even when a specific site is selected.
+* The filter should properly display data only for the selected site.
+
+3. Vendor Rate Mapping in Purchase Order
+   We have different vendors for the same material category and each vendor may have different rates.
+
+Add a feature where:
+
+* Each vendor can have their own rate list for materials.
+* When I select a vendor in the Purchase Order form, the system automatically loads that vendor's saved material rates.
+* The material rate field should auto-fill based on the selected vendor.
+
+4. Vendor Rate Comparison Tool
+   Add a "Rate Comparison" page where I can compare multiple vendors for the same list of materials.
+
+Features:
+
+* Select 2 or more vendors.
+* Select a list of materials.
+* Display a comparison table like:
+
+Material | Vendor A Rate | Vendor B Rate | Vendor C Rate | Lowest Rate Highlighted
+
+* Highlight the lowest rate automatically.
+* Allow exporting the comparison as Excel or PDF.
+* Allow converting the selected vendor rates into a Purchase Order.
+
+5. Sidebar Menu Update
+   Add these menu items:
+
+Vendor Payments
+Rate Comparison
+Vendor Rate List
+
+6. Database Changes
+   Add new tables if needed:
+
+vendor_monthly_payments
+vendor_material_rates
+rate_comparison_records
+
+Ensure all new features work with the existing modules:
+Vendors
+Materials
+Purchase Orders
+GRN
+Bills
+Sites
+Reports
+
+The system must continue to work as an offline desktop application using Electron with a local SQLite database.

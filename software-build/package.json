@@ -1,0 +1,56 @@
+{
+  "name": "billionaire-homes-purchase-dept",
+  "version": "1.0.0",
+  "description": "Billionaire Homes LLP - Purchase Department Dashboard",
+  "main": "main.js",
+  "author": "Billionaire Homes LLP",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64",
+    "dist:dir": "electron-builder --win --x64 --dir"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0"
+  },
+  "devDependencies": {
+    "electron": "^33.4.0",
+    "electron-builder": "^25.1.8",
+    "@electron/rebuild": "^3.7.1"
+  },
+  "build": {
+    "appId": "com.billionairehomes.purchasedept",
+    "productName": "Billionaire Homes - Purchase Department",
+    "copyright": "Copyright © 2026 Billionaire Homes LLP",
+    "directories": {
+      "output": "output"
+    },
+    "files": [
+      "main.js",
+      "server.cjs",
+      "public/**/*",
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public",
+        "to": "public",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon.png"
+    },
+    "portable": {
+      "artifactName": "BillionaireHomes-PurchaseDept.exe"
+    },
+    "asar": false
+  }
+}

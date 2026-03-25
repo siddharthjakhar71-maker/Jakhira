@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+
+    <meta property="og:title" content="Billionaire Homes LLP - Purchase Department" />
+    <meta property="og:description" content="Offline procurement dashboard for purchase department management." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Billionaire Homes LLP - Purchase Department" />
+    <meta name="twitter:description" content="Offline procurement dashboard for purchase department management." />
+
+    <link rel="icon" type="image/png" href="/logo.ico" />
+    <title>JAKHIRA ERP</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('theme') || localStorage.getItem('app-theme') || 'system';
+          var primaryColor = localStorage.getItem('primary-color') || localStorage.getItem('app-primary-color') || '#2563eb';
+          var resolved = theme === 'system'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : theme;
+          if (resolved === 'dark') document.documentElement.classList.add('dark');
+          else document.documentElement.classList.remove('dark');
+          document.documentElement.style.colorScheme = resolved;
+          document.documentElement.style.setProperty('--primary-color', primaryColor);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
