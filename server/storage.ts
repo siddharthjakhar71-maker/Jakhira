@@ -1274,6 +1274,9 @@ export class DatabaseStorage implements IStorage {
     if (typeof payload.email === "string") {
       payload.email = payload.email.trim().toLowerCase();
     }
+    if (typeof payload.password === "string" && payload.password.trim()) {
+      payload.password = isPasswordHashed(payload.password) ? payload.password : hashPassword(payload.password);
+    }
     payload.updatedAt = new Date().toISOString();
     const [result] = await db.update(users).set(payload).where(eq(users.id, id)).returning();
     return result;

@@ -155,7 +155,7 @@ export async function registerRoutes(
   startBackupScheduler();
 
   // Auth
-  app.post("/api/auth/login", async (req, res) => {
+  const loginHandler = async (req: Request, res: any) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
 
@@ -166,28 +166,52 @@ export async function registerRoutes(
     await storage.ensureDefaultAdminUser();
     const user = await storage.getUserByEmail(email);
 
-    if (!user || !user.isActive || !verifyPassword(password, user.password)) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    console.log(`[auth.login] lookup email=${email} found=${Boolean(user)}`);
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Invalid email" });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: "Account is inactive" });
+    }
+
+    const passwordMatched = verifyPassword(password, user.password);
+    console.log(`[auth.login] passwordMatch email=${email} matched=${passwordMatched}`);
+    if (!passwordMatched) {
+      return res.status(401).json({ success: false, message: "Wrong password" });
     }
 
     if (!isPasswordHashed(user.password)) {
       await storage.updateUser(user.id, { password: hashPassword(password) });
     }
 
-    req.session.user = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
     await new Promise<void>((resolve, reject) => {
-      req.session.save((error) => {
+      req.session.regenerate((error) => {
         if (error) {
           reject(error);
           return;
         }
-        resolve();
+        req.session.user = {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        };
+        req.session.save((saveError) => {
+          if (saveError) {
+            reject(saveError);
+            return;
+          }
+          resolve();
+        });
       });
+    });
+
+    req.session.touch();
+    res.cookie("jakhira.sid", req.sessionID, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 12,
+      secure: process.env.NODE_ENV === "production",
     });
 
     await logAuditEvent(storage, { id: user.id, name: user.name, role: user.role }, {
@@ -200,6 +224,24 @@ export async function registerRoutes(
     });
 
     return res.json({ success: true, user: sanitizeUser(user) });
+  };
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      return await loginHandler(req, res);
+    } catch (error) {
+      console.error("[auth.login] error", error);
+      return res.status(500).json({ success: false, message: "Login failed due to server error" });
+    }
+  });
+
+  app.post("/api/login", async (req, res) => {
+    try {
+      return await loginHandler(req, res);
+    } catch (error) {
+      console.error("[auth.login] error", error);
+      return res.status(500).json({ success: false, message: "Login failed due to server error" });
+    }
   });
 
   app.use("/api", (req, res, next) => requireAuth()(req, res, next));

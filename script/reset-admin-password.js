@@ -19,17 +19,15 @@ function resolveDbPath() {
 }
 
 function usage() {
-  console.log("Usage: node script/reset-admin-password.js <email> <newPassword>");
-  console.log("Example: node script/reset-admin-password.js admin@purchase.local Admin@12345");
+  console.log("Usage: node script/reset-admin-password.js [email] [newPassword]");
+  console.log("Example: node script/reset-admin-password.js admin@purchase.local admin123");
+  console.log("Defaults: email=admin@purchase.local password=admin123");
 }
 
-const [, , emailArg, newPassword] = process.argv;
-if (!emailArg || !newPassword) {
-  usage();
-  process.exit(1);
-}
+const [, , emailArg, passwordArg] = process.argv;
 
-const email = emailArg.trim().toLowerCase();
+const email = (emailArg || "admin@purchase.local").trim().toLowerCase();
+const newPassword = (passwordArg || "admin123").trim();
 if (newPassword.length < 6) {
   console.error("Error: password must be at least 6 characters.");
   process.exit(1);
@@ -39,8 +37,9 @@ const dbPath = resolveDbPath();
 const db = new Database(dbPath);
 
 try {
+  usage();
   const target = db
-    .prepare("SELECT id, name, email, role, is_active FROM users WHERE lower(email) = lower(?) LIMIT 1")
+    .prepare("SELECT id, name, email, role, is_active, password FROM users WHERE lower(email) = lower(?) LIMIT 1")
     .get(email);
 
   if (!target) {
@@ -49,6 +48,8 @@ try {
   }
 
   const hashedPassword = hashPassword(newPassword);
+  const oldPassword = String(target.password || "");
+  const oldHashLooksValid = oldPassword.startsWith("scrypt:") && oldPassword.split(":").length === 3;
   const now = new Date().toISOString();
 
   const tx = db.transaction(() => {
@@ -69,6 +70,8 @@ try {
   console.log(`Email: ${target.email}`);
   console.log(`Role: ${target.role}`);
   console.log(`Active: ${target.is_active ? "yes" : "no"}`);
+  console.log(`Old hash valid format: ${oldHashLooksValid ? "yes" : "no"}`);
+  console.log(`New hash prefix: ${hashedPassword.slice(0, 7)}`);
   console.log(`DB path: ${dbPath}`);
 } finally {
   db.close();
