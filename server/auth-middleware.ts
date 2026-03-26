@@ -15,8 +15,9 @@ export type AuthenticatedRequest = Request & {
 export function requireAuth() {
   return (req: Request, res: Response, next: NextFunction) => {
     const authReq = req as AuthenticatedRequest;
+    const sessionUser = authReq.session?.user;
 
-    if (!authReq.session?.user) {
+    if (!sessionUser?.id || !sessionUser?.email || !sessionUser?.role) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 

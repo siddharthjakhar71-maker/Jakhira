@@ -33,3 +33,11 @@ export function verifyPassword(password: string, storedPassword: string): boolea
 export function isPasswordHashed(password: string): boolean {
   return password.startsWith(`${HASH_PREFIX}:`);
 }
+
+export function isValidStoredPasswordHash(password: string): boolean {
+  const [prefix, salt, storedHash] = password.split(":");
+  if (prefix !== HASH_PREFIX || !salt || !storedHash) {
+    return false;
+  }
+  return /^[a-f0-9]{32}$/i.test(salt) && /^[a-f0-9]{128}$/i.test(storedHash);
+}
