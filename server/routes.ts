@@ -906,50 +906,63 @@ export async function registerRoutes(
 
   // Payments
   app.get("/api/payments", async (req, res) => {
-    if (!(await requirePermission(req, res, "view"))) return;
-    const result = await storage.getPayments();
-    res.json(result);
+    try {
+      if (!(await requirePermission(req, res, "view"))) return;
+      const result = await storage.getPayments();
+      return res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to fetch payments";
+      return res.status(500).json({ message });
+    }
   });
 
   app.post("/api/payments", async (req, res) => {
-    if (!(await requireModulePermission(req, res, "Bills", "edit"))) return;
-    const vendorId = typeof req.body?.vendorId === "string" ? req.body.vendorId.trim() : "";
-    const amount = Number(req.body?.amount || 0);
-    const paymentDate = typeof req.body?.paymentDate === "string" && req.body.paymentDate
-      ? req.body.paymentDate
-      : typeof req.body?.date === "string" && req.body.date
-        ? req.body.date
-        : new Date().toISOString().slice(0, 10);
-
-    if (!vendorId) {
-      return res.status(400).json({ message: "vendorId is required" });
-    }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({ message: "amount must be greater than zero" });
-    }
-
-    let result;
     try {
-      result = await storage.createPayment({
+      if (!(await requireModulePermission(req, res, "Payments", "create"))) return;
+      const vendorId = typeof req.body?.vendorId === "string" ? req.body.vendorId.trim() : "";
+      const amount = Number(req.body?.amount || 0);
+      const paymentDate = typeof req.body?.paymentDate === "string" && req.body.paymentDate
+        ? req.body.paymentDate
+        : typeof req.body?.date === "string" && req.body.date
+          ? req.body.date
+          : new Date().toISOString().slice(0, 10);
+
+      if (!vendorId) {
+        return res.status(400).json({ message: "vendorId is required" });
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ message: "amount must be greater than zero" });
+      }
+
+      const result = await storage.createPayment({
         ...req.body,
         vendorId,
         amount,
         paymentDate,
         date: paymentDate,
       });
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "CREATE_PAYMENT",
+        module: "Payments",
+        entityType: "payment",
+        entityId: result.id,
+        description: `Payment ${result.displayId} was created.`,
+      });
+      return res.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to create payment";
-      const statusCode = message === "Unable to create payment" ? 500 : 400;
-      return res.status(statusCode).json({ message });
+      const isClientError = [
+        "vendorId is required",
+        "amount must be greater than zero",
+        "Payment amount must be greater than zero",
+        "Payment amount exceeds vendor outstanding",
+        "No unpaid bills available for this vendor",
+        "Manual adjustment total cannot exceed payment amount",
+        "Manual adjustments do not fully allocate payment amount",
+        "Unable to fully allocate payment to unpaid bills",
+      ].includes(message);
+      return res.status(isClientError ? 400 : 500).json({ message });
     }
-    await logAuditEvent(storage, await getAuditActor(req), {
-      action: "CREATE_PAYMENT",
-      module: "Payments",
-      entityType: "payment",
-      entityId: result.id,
-      description: `Payment ${result.displayId} was created.`,
-    });
-    res.json(result);
   });
 
   app.patch("/api/payments/:id", async (req, res) => {
@@ -967,26 +980,26 @@ export async function registerRoutes(
   });
 
   app.delete("/api/payments/:id", async (req, res) => {
-    if (!(await requireModulePermission(req, res, "Bills", "edit"))) return;
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ message: "Invalid payment id" });
-    }
     try {
+      if (!(await requireModulePermission(req, res, "Payments", "delete"))) return;
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ message: "Invalid payment id" });
+      }
       await storage.deletePayment(id);
+      await logAuditEvent(storage, await getAuditActor(req), {
+        action: "DELETE_PAYMENT",
+        module: "Payments",
+        entityType: "payment",
+        entityId: id,
+        description: `Payment ${id} was deleted.`,
+      });
+      return res.json({ success: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to delete payment";
       const statusCode = message === "Payment not found" ? 404 : message === "Invalid payment id" ? 400 : 500;
       return res.status(statusCode).json({ message });
     }
-    await logAuditEvent(storage, await getAuditActor(req), {
-      action: "DELETE_PAYMENT",
-      module: "Payments",
-      entityType: "payment",
-      entityId: id,
-      description: `Payment ${id} was deleted.`,
-    });
-    res.json({ success: true });
   });
 
 
