@@ -907,12 +907,17 @@ export async function registerRoutes(
   // Payments
   app.get("/api/payments", async (req, res) => {
     if (!(await requirePermission(req, res, "view"))) return;
-    const result = await storage.getPayments();
-    res.json(result);
+    try {
+      const result = await storage.getPayments();
+      return res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to fetch payments";
+      return res.status(500).json({ message });
+    }
   });
 
   app.post("/api/payments", async (req, res) => {
-    if (!(await requireModulePermission(req, res, "Bills", "edit"))) return;
+    if (!(await requireModulePermission(req, res, "Payments", "create"))) return;
     const vendorId = typeof req.body?.vendorId === "string" ? req.body.vendorId.trim() : "";
     const amount = Number(req.body?.amount || 0);
     const paymentDate = typeof req.body?.paymentDate === "string" && req.body.paymentDate
@@ -949,7 +954,7 @@ export async function registerRoutes(
       entityId: result.id,
       description: `Payment ${result.displayId} was created.`,
     });
-    res.json(result);
+    return res.json(result);
   });
 
   app.patch("/api/payments/:id", async (req, res) => {
@@ -967,7 +972,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/payments/:id", async (req, res) => {
-    if (!(await requireModulePermission(req, res, "Bills", "edit"))) return;
+    if (!(await requireModulePermission(req, res, "Payments", "delete"))) return;
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ message: "Invalid payment id" });

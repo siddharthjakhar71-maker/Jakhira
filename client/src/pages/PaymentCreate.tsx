@@ -52,10 +52,12 @@ export default function PaymentCreate() {
     () => Object.values(manualAdjustments).reduce((sum, value) => sum + Number(value || 0), 0),
     [manualAdjustments],
   );
+  const manualOverAllocated = manualTotal > paymentAmount;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!vendorId) return;
+    if (!vendorId || paymentAmount <= 0) return;
+    if (manualMode && manualOverAllocated) return;
 
     const payload: Record<string, unknown> = {
       vendorId,
@@ -68,7 +70,7 @@ export default function PaymentCreate() {
       const adjustments = vendorBills
         .map((bill) => ({
           billId: bill.id,
-          adjustedAmount: Number(manualAdjustments[bill.id] || 0),
+          adjustedAmount: Math.max(0, Math.min(Number(manualAdjustments[bill.id] || 0), Math.max(Number(bill.amount || 0) - Number(bill.paidAmount || 0), 0))),
         }))
         .filter((entry) => entry.adjustedAmount > 0);
       if (adjustments.length > 0) {
@@ -88,7 +90,7 @@ export default function PaymentCreate() {
           subtitle="Auto-adjust payment against oldest unpaid bills"
           onCancel={() => setLocation("/payments")}
           onSave={() => formRef.current?.requestSubmit()}
-          saveDisabled={!vendorId || paymentAmount <= 0 || (manualMode && manualTotal <= 0)}
+          saveDisabled={!vendorId || paymentAmount <= 0 || (manualMode && (manualTotal <= 0 || manualOverAllocated))}
         />
 
         <Card>
@@ -122,6 +124,11 @@ export default function PaymentCreate() {
             </div>
           </CardHeader>
           <CardContent className="overflow-x-auto">
+            {manualMode && manualOverAllocated && (
+              <p className="mb-3 text-sm text-destructive">
+                Manual adjusted total cannot be greater than payment amount.
+              </p>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
