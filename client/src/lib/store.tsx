@@ -346,6 +346,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: queryKeys.payments }),
       queryClient.invalidateQueries({ queryKey: queryKeys.bills }),
       queryClient.invalidateQueries({ queryKey: ["vendorPayables"] }),
+      queryClient.invalidateQueries({ queryKey: ["vendorOutstanding"] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-ledger"] }),
     ]);
   };
 
@@ -358,6 +360,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: queryKeys.payments }),
       queryClient.invalidateQueries({ queryKey: queryKeys.bills }),
       queryClient.invalidateQueries({ queryKey: ["vendorPayables"] }),
+      queryClient.invalidateQueries({ queryKey: ["vendorOutstanding"] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-ledger"] }),
     ]);
   };
 

@@ -666,7 +666,7 @@ export class DatabaseStorage implements IStorage {
       const adjustments = adjustmentsByPayment.get(payment.id) || [];
       return {
         ...payment,
-        billRefs: adjustments.map((item) => item.billDisplayId),
+        billRefs: adjustments.map((item) => String(item.billId)),
         adjustments,
       } as Payment;
     });
@@ -732,6 +732,11 @@ export class DatabaseStorage implements IStorage {
 
       let remainingPayment = totalAmount;
       const billById = new Map(payableByBill.map((bill) => [bill.id, bill]));
+      const requestedManualTotal = manualAdjustments.reduce((sum: number, entry: any) => sum + Math.max(Number(entry?.adjustedAmount || 0), 0), 0);
+      if (manualAdjustments.length > 0 && requestedManualTotal > totalAmount) {
+        throw new Error("Manual adjustment total cannot exceed payment amount");
+      }
+
       const adjustmentPlan = manualAdjustments.length > 0
         ? manualAdjustments
             .map((entry: any) => ({
@@ -773,8 +778,8 @@ export class DatabaseStorage implements IStorage {
         remainingPayment -= adjustedAmount;
       }
 
-      if (remainingPayment > 0) {
-        throw new Error("Unable to fully allocate payment to unpaid bills");
+      if (remainingPayment > 0.000001) {
+        throw new Error(manualAdjustments.length > 0 ? "Manual adjustments do not fully allocate payment amount" : "Unable to fully allocate payment to unpaid bills");
       }
 
       return {

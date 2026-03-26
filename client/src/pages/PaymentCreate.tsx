@@ -56,6 +56,11 @@ export default function PaymentCreate() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!vendorId) return;
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) return;
+    if (paymentAmount > totalOutstanding) {
+      window.alert("Payment amount exceeds outstanding for this vendor.");
+      return;
+    }
 
     const payload: Record<string, unknown> = {
       vendorId,
@@ -65,6 +70,14 @@ export default function PaymentCreate() {
     };
 
     if (manualMode) {
+      if (manualTotal <= 0) {
+        window.alert("Enter at least one manual adjustment amount.");
+        return;
+      }
+      if (manualTotal > paymentAmount) {
+        window.alert("Manual adjustment total cannot exceed payment amount.");
+        return;
+      }
       const adjustments = vendorBills
         .map((bill) => ({
           billId: bill.id,
@@ -88,7 +101,7 @@ export default function PaymentCreate() {
           subtitle="Auto-adjust payment against oldest unpaid bills"
           onCancel={() => setLocation("/payments")}
           onSave={() => formRef.current?.requestSubmit()}
-          saveDisabled={!vendorId || paymentAmount <= 0 || (manualMode && manualTotal <= 0)}
+          saveDisabled={!vendorId || paymentAmount <= 0 || paymentAmount > totalOutstanding || (manualMode && manualTotal <= 0)}
         />
 
         <Card>
