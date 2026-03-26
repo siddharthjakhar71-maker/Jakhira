@@ -58,7 +58,7 @@ export interface IStorage {
   deleteBill(id: number): Promise<void>;
 
   getPayments(): Promise<Payment[]>;
-  createPayment(payment: InsertPayment): Promise<PaymentCreateResult>;
+  createPayment(payment: InsertPayment & { adjustments?: Array<{ billId: number; adjustedAmount: number }> }): Promise<PaymentCreateResult>;
   updatePayment(id: number, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
   deletePayment(id: number): Promise<void>;
 
@@ -666,12 +666,12 @@ export class DatabaseStorage implements IStorage {
       const adjustments = adjustmentsByPayment.get(payment.id) || [];
       return {
         ...payment,
-        billRefs: adjustments.map((item) => item.billDisplayId),
+        billRefs: adjustments.map((item) => item.billId),
         adjustments,
       } as Payment;
     });
   }
-  async createPayment(payment: InsertPayment): Promise<PaymentCreateResult> {
+  async createPayment(payment: InsertPayment & { adjustments?: Array<{ billId: number; adjustedAmount: number }> }): Promise<PaymentCreateResult> {
     const normalizedDate = payment.paymentDate || payment.date || new Date().toISOString().slice(0, 10);
     const normalizedVendorId = String(payment.vendorId || "").trim();
     const totalAmount = Number(payment.amount || 0);
@@ -690,7 +690,7 @@ export class DatabaseStorage implements IStorage {
       amount: totalAmount,
     };
 
-    const manualAdjustments = Array.isArray((payment as any).adjustments) ? (payment as any).adjustments : [];
+    const manualAdjustments = Array.isArray(payment.adjustments) ? payment.adjustments : [];
 
     const createdPayment = db.transaction((tx) => {
       const unpaidBills = tx
@@ -734,11 +734,11 @@ export class DatabaseStorage implements IStorage {
       const billById = new Map(payableByBill.map((bill) => [bill.id, bill]));
       const adjustmentPlan = manualAdjustments.length > 0
         ? manualAdjustments
-            .map((entry: any) => ({
+            .map((entry) => ({
               billId: Number(entry.billId),
               adjustedAmount: Number(entry.adjustedAmount || 0),
             }))
-            .filter((entry: any) => Number.isFinite(entry.billId) && entry.adjustedAmount > 0)
+            .filter((entry) => Number.isFinite(entry.billId) && entry.adjustedAmount > 0)
         : payableByBill.map((bill) => ({ billId: bill.id, adjustedAmount: Number.POSITIVE_INFINITY }));
 
       for (const plan of adjustmentPlan) {

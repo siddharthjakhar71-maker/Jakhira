@@ -25,7 +25,9 @@ export default function Payments() {
     if (!q) return payments;
 
     return payments.filter((payment: any) => {
-      const refs = Array.isArray(payment.billRefs) ? payment.billRefs.join(", ").toLowerCase() : "";
+      const refs = Array.isArray(payment.adjustments)
+        ? payment.adjustments.map((item: any) => item.billDisplayId || `#${item.billId}`).join(", ").toLowerCase()
+        : "";
       const vendorName = vendorById.get(String(payment.vendorId))?.toLowerCase() || "";
       return (
         String(payment.displayId || "").toLowerCase().includes(q) ||
@@ -122,7 +124,11 @@ export default function Payments() {
                     <TableCell className="font-medium text-primary">{payment.displayId || `PAY-${payment.id}`}</TableCell>
                     <TableCell>{payment.paymentDate || payment.date}</TableCell>
                     <TableCell>{vendorById.get(String(payment.vendorId)) || "-"}</TableCell>
-                    <TableCell className="text-muted-foreground">{Array.isArray(payment.billRefs) && payment.billRefs.length ? payment.billRefs.join(", ") : "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {Array.isArray(payment.adjustments) && payment.adjustments.length
+                        ? payment.adjustments.map((item: any) => item.billDisplayId || `#${item.billId}`).join(", ")
+                        : "-"}
+                    </TableCell>
                     <TableCell>{payment.mode || "-"}</TableCell>
                     <TableCell>{payment.reference || '-'}</TableCell>
                     <TableCell className="text-right font-medium text-emerald-600">{money(Number(payment.amount || 0))}</TableCell>
